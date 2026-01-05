@@ -65,7 +65,7 @@ X = [ones(N,1), Z, M];
 
 % Orthog the study design
 % [X, ~] = makeInterceptGrandMean(X, 3:size(X,2));
-studyCols = 2:size(X,2); %3:size(X,2); % Change to add custom regressors
+studyCols = 3:size(X,2); %3:size(X,2); % Change to add custom regressors
 
 [X, ~] = makeInterceptGrandMean(X, studyCols, 'keepIntercept', true, 'frontRegs', false);
 
@@ -104,8 +104,7 @@ tmpl = image_vector('image_names','fmriprep20_template.nii');
 tiv_rs = resample_space(tmap_iv, tmpl);
 % montage(tiv_rs, 'trans', 0.5,'montagetype','full');
 
-% T = tinv(1-0.025, df);
-T = tinv(1-p1,df);
+T = tinv(1-0.025, df);
 plot_signed_threshold(tiv_rs, T)
 % montage(tiv_rs, 'trans', 0.2,'montagetype','full','threshold',    T,'cmaprange',    [min(tmap_iv.dat) max(tmap_iv.dat)]);
 % 

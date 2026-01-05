@@ -1,0 +1,97 @@
+function [X2, info] = makeInterceptGrandMean(X, studyCols, varargin)
+% RECODESTUDYDUMMIES  Recode study dummy columns so intercept = grand mean
+%
+% [X2, info] = recodeStudyDummies(X, studyCols, 'keepIntercept',true, 'frontRegs',true)
+%
+% Inputs:
+%  - X: NxK design matrix
+%  - studyCols: vector of column indices in X that are the S study dummies
+% Optional name/value:
+%  - 'keepIntercept' (default=false): set true if X already contains an intercept col
+%  - 'frontRegs'     (default=true) : place [intercept, S-1 study cols] at front of X2
+%
+% Outputs:
+%  - X2: transformed design matrix (full rank; intercept = grand mean)
+%  - info: struct with bookkeeping and diagnostics
+
+% parse opts
+p = inputParser;
+addParameter(p,'keepIntercept',false,@islogical);
+addParameter(p,'frontRegs',true,@islogical);
+parse(p,varargin{:});
+keepIntercept = p.Results.keepIntercept;
+frontRegs     = p.Results.frontRegs;
+
+[N, K] = size(X);
+
+% Extract study dummies and check
+D = double(X(:, studyCols));   % N x S
+S = size(D,2);
+
+if any(sum(D,2) ~= 1)
+    warning('Not every row has exactly one 1 across studyCols. Check your study coding.');
+end
+
+% 1) center full S columns (make column means zero)
+p_j = mean(D, 1);              % 1 x S
+Dc = D - repmat(p_j, N, 1);    % N x S  (now each column has mean zero)
+
+% 2) reduce to S-1 by dropping the last column (you can drop any)
+Dc_reduced = Dc(:, 1:(S-1));   % N x (S-1)
+
+% 3) detect intercept in other columns if keepIntercept==true
+allCols = 1:K;
+otherCols = setdiff(allCols, studyCols, 'stable');
+
+intercept_idx = [];
+if keepIntercept
+    % try to detect an exact ones column among otherCols
+    for c = otherCols
+        if all(abs(X(:,c) - 1) < 1e-12)
+            intercept_idx = c;
+            break;
+        end
+    end
+    if isempty(intercept_idx)
+        warning('keepIntercept true but no exact all-ones column found in X. Will insert intercept.');
+        keepIntercept = false;
+    end
+end
+
+% 4) build X2 with requested order
+% otherCovs excludes the studyCols (and excludes the intercept col if we will insert it)
+otherCovs = setdiff(otherCols, intercept_idx, 'stable');
+
+if keepIntercept
+    intercept_col = X(:, intercept_idx);   % use provided intercept column
+else
+    intercept_col = ones(N,1);
+end
+
+if frontRegs
+    X2 = [intercept_col, Dc_reduced, X(:, otherCovs)];
+else
+    X2 = [X(:, otherCovs), intercept_col, Dc_reduced];
+end
+
+% 5) bookkeeping & diagnostics
+info.S = S;
+info.origStudyCols = studyCols;
+info.p_j = p_j;
+info.newStudyCols = find(ismember(1:size(X2,2), 1 + (1:(S-1)) & true)); %#ok<AGROW> % approximate
+% more explicit:
+info.col_indices.intercept = 1;
+info.col_indices.study_cols = 2:(1 + (S-1));
+info.col_indices.otherCovs  = (1 + (S-1) + 1) : size(X2,2);
+
+% reconstruct full centered S matrix and test properties
+Dc_full_recon = [Dc_reduced, -sum(Dc_reduced,2)];  % N x S
+info.max_abs_col_mean = max(abs(mean(Dc_full_recon,1)));
+info.max_abs_row_sum = max(abs(sum(Dc_full_recon,2)));
+info.notes = sprintf('Dropped original study column index %d (the last of studyCols).', studyCols(end));
+
+% print small diagnostic
+fprintf('RecodeStudyDummies: S=%d, max abs col-mean (should be ~0): %g\n', S, info.max_abs_col_mean);
+fprintf('RecodeStudyDummies: max abs row-sum (should be ~0): %g\n', info.max_abs_row_sum);
+
+end

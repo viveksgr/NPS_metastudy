@@ -27,7 +27,9 @@ for j = 1:M
                 BigData_norm(valid, j) = col(valid) / (var(col(valid))/sum(valid));
             elseif strcmp(method,'InvVar')
                 BigData_norm(valid, j) = col(valid) / (var(col(valid)));
-            else 
+            elseif strcmp(method,'InvStd')
+                BigData_norm(valid, j) = col(valid) / (std(col(valid)));
+            else
                 error('Wrong method')
             end
 

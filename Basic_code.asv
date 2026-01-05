@@ -108,7 +108,7 @@ BigDat_f = cat(2,BigDat_f, BigDat_f2);
 
 % Zunhammer studies
 BigDat_f(7) = [];
-c2 = cat(2,  {dir(studydir2).name});
+c2 = cat(2,  {dir(studydir2).name})
 c2 = c2(3:end);
 ColNames_edit_full = cat(1,ColNames_edit',c2');
 ColNames_edit_full(7) = [];
@@ -127,6 +127,8 @@ ax = gca;
 ax.XAxis.TickLabelInterpreter = 'none';
 ax.YAxis.TickLabelInterpreter = 'none';
 
+
+
 % Normalize to same space:
 data_cell = alignFmriDataToReference(BigDat_f, [2]);
 data_cell_rn = cellfun(@(x) harmonize_zero_preserve(x),data_cell,'UniformOutput',false);
@@ -143,9 +145,10 @@ for ii = 17:31
     title(ColNames_edit_full{ii},'Interpreter','none')
 end
 
-st_vec = cat(2,[1 2 3 4 4 4 5 6 6 6 6 7 7 8 9 10],11:24);
+
+st_vec = cat(2,[1 2 3 4 4 4 5 6 6 6 6 7 7 8 9 10],11:25);
 % C = (([1 1 -1 -1 -1 -1 1 1 1 1 -1 -1 -1 -1 1 ]+1)/2)+1;
-C = (([1 1 -1 -1 -1 -1 1 1 1 -1 -1 -1 -1 1 1 -1 -1 -1 1 1 -1 -1 -1 -1 -1 1 1 -1 1 1]+1)/2)+1;
+C = (([1 1 -1 -1 -1 -1 1 1 1 -1 -1 -1 -1 1 1 -1 -1 -1 1 1 -1 -1 -1 -1 -1 1 1 -1 1 1 1]+1)/2)+1;
 % C = C(1:16);
 % st_vec = st_vec(1:16);c 
 [tmap_iv, pmap_iv, df] = voxelwiseLM(data_cell_rn, C, st_vec);
