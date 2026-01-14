@@ -88,10 +88,10 @@ end
 % -------------------------------------------------------------------------
 % 3.  Trim trailing all-NaN rows (optional)
 % -------------------------------------------------------------------------
-lastRow = find(any(~isnan(BigDat),2), 1, 'last');
-if ~isempty(lastRow)
-    BigDat = BigDat(1:lastRow, :);
-else
-    warning('All rows are NaN — check your inputs.');
-end
+% lastRow = find(any(~isnan(BigDat),2), 1, 'last');
+% if ~isempty(lastRow)
+%     BigDat = BigDat(1:lastRow, :);
+% else
+%     warning('All rows are NaN — check your inputs.');
+% end
 end

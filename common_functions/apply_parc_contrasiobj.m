@@ -16,8 +16,8 @@ for s = 1:nStudies
     dat = fmri_objs{s};
     
     % 1) extract whatever surviving ROIs you get back
-    % roi_dats = extract_roi_averages(dat, atlas);
-    roi_dats = extract_roi_averages_maxt(dat, atlas);
+    roi_dats = extract_roi_averages(dat, atlas);
+    % roi_dats = extract_roi_averages_maxt(dat, atlas);
     % roi_dats3 = extract_roi_averages_maxt(dat, atlas);
 
     nFound = length(roi_dats);

@@ -1,4 +1,4 @@
-function o2 = plot_signed_threshold_colormap(tiv_rs, T, varargin)
+function o2 = plot_signed_threshold(tiv_rs, T, varargin)
 % PLOT_SIGNED_THRESHOLD_COLORMAP  show ±T map with graded diverging colormap
 %
 % o2 = plot_signed_threshold_colormap(tiv_rs, T, 'transvalue',0.25, 'ncolors',256)

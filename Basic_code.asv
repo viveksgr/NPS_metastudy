@@ -2,71 +2,26 @@ addpath(genpath('C:\Work\Toolboxes'))
 addpath(genpath('C:\Work\mind\toolboxes'))
 addpath('C:\Work\NPS_metastudy\common_functions')
 
-%% Make contrast obj (run it one time for each study's contrast images)
-% % gather all subject contrast files (example pattern)
-% clear all
-% confiles = dir(fullfile(pwd,'s_r_*.nii.gz')); % adjust
-% % build fullpaths cell
-% confiles = fullfile({confiles.folder}, {confiles.name});
-% 
-% % create fmri_data object (uses CanlabCore fmri_data constructor)
-% DATA_OBJ_CON{1} = fmri_data(confiles);    % will apply default brain mask (or specify mask)
-% save('contrast_data_objects.mat')
+%% Behavioral Datasets
+% Non Placebo studies
+ColNames_mat = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\labels.mat');
+ColNames = ColNames_mat.ColNames;
+Group_labels = ColNames_mat.group_var;
 
-%% Simple plots
-% Make simple barplot
-ms_ratings_all_bc = ms_ratings_all;
-
-% change pain_scores for positive effect`
-sign_vector = [1 1 1 -1 1 1 -1 1 -1 -1 -1];
-
-% pain_ratings:
-ms_ratings_vec = sign_vector .*ms_ratings_all./std(ms_ratings_all,'omitmissing');
-
-plot_sorted_bar_with_errors((ms_ratings_vec),study_names_correct)
-compare_within_between_distances(ms_ratings_vec)
-compare_avg_distances_per_column((ms_ratings_vec))
-
-% Apply parcellation
-atlasname = 'canlab2023_coarse_fmriprep20_1mm';
-atlas = load_atlas(atlasname);
-f_correct = cell(1,11);
-f_correct{6} = [451   455   470   480   499   505   506];
-f_correct{9} = [480];
-
-% % Change sign
-for ss = 1:nStudies
-    ms_brain{ss}.dat = sign_vector(ss).* ms_brain{ss}.dat;
-end
-[parc_data_multi] = apply_parc_contrasiobj(ms_brain,atlas,f_correct);
-
-% study_means = average_subjects(parc_data_neg);
-[study_means] = average_subjects_t(parc_data_multi);
-
-plot_top_roi_heatmap(study_means,atlas.labels, study_names, 1.65, 100)
-plot_unique_roi_heatmap(  study_means, atlas.labels,  study_names)
-[mean_data, var_meta] = average_subjects_tcorrected(parc_data_multi);
-
-mean_ct_pos = sum(study_means>1.98,1);
-mean_ct_neg = sum(study_means<-1.98,1);
-create_nifty_patterns(atlas,-mean_data ,'mean_data_neg.nii')
-
-group_idx = [1 1 1 1 2 1 1 1 2 2 2];
-plot_study_kmeans(parc_data_multi, 2, group_idx)
-
-%% Reintegrate data
-% Study 1
+ccode = {[1],[3],[21],[10,11,12],[15:18],[9],[19],[1],[3],[1]}';
 studydir = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\included_studies';
-[BigDat, ColNames] = NPSMS_harvest_canlab_cols(studydir, ccode, 40);
+[BigDat, ~] = NPSMS_harvest_canlab_cols(studydir, ccode, 50);
 
-% Study 2
+% Placebo studies
 studydir2 = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\zunhammer2018_studies';
 ccode2 = num2cell(ones(1,15));
-[BigDat2, ColNames2] = NPSMS_harvest_canlab_cols(studydir2, ccode2, 80);
+[BigDat2, ~] = NPSMS_harvest_canlab_cols(studydir2, ccode2, 50);
 
-% BigDat = l2normalize_columns(BigDat,'L2');
-BigDat = cat(1, BigDat,nan(8,16));
+
 BigDat = cat(2,BigDat, BigDat2);
+lastRow = find(any(~isnan(BigDat),2), 1, 'last');
+if ~isempty(lastRow); BigDat = BigDat(1:lastRow, :);end
+% BigDat = l2normalize_columns(BigDat,'L2');
 BigDat = l2normalize_columns(BigDat,'InvStd');
 
 % Switch signs
@@ -74,8 +29,7 @@ BigDat_n = BigDat;
 idx_vec = sign(mean(BigDat_n,'omitmissing'));
 idx_mat = repmat(idx_vec,[size(BigDat,1),1]);
 BigDat_n = BigDat.*idx_mat;
-ColNames_edit = cat(2,ColNames,ColNames2);
-plot_sorted_bar_with_errors(BigDat_n, ColNames_edit)
+plot_sorted_bar_with_errors(BigDat_n, ColNames)
 
 %% Imaging Data
 %  desc = descriptives(DATA_OBJ_CON{1, 1}  , ['noverbose', 'plotcoverage']);
@@ -83,15 +37,28 @@ plot_sorted_bar_with_errors(BigDat_n, ColNames_edit)
 %  % desc = descriptives(DATA_OBJ_CON{1, 1}  , ['noverbose', 'plotcoverage']);
 %  % qc_metrics_second_level(DATA_OBJ_CON{1, 1});
 % % help robfit_parcelwise
+ColNames_mat = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\labels.mat');
+ColNames = ColNames_mat.ColNames;
+Group_labels = ColNames_mat.group_var;
+idx_vec = [1 -1 -1 -1 1 -1 1 1 1 1 1 -1 -1 -1 1 ones(1,15)]';
 
 studydir = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\included_studies';
 studydir2 = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\zunhammer2018_studies';
+
+% Some fixes
+% ColNames(4) = [];
+% Group_labels(4) = [];
+% idx_vec(4) = [];
+st_vec = cat(2,[1 2 3 4 4 4 5 5 5 5 6 7 8 9 10],11:25);
+C = (([1 1 1 -1 -1 -1 1 1 1 -1 -1 -1 -1 1 1 -1 -1 -1 1 1 -1 -1 -1 -1 -1 1 1 -1 1 1]+1)/2)+1;
+Idx = {[1], [1], [2], [4:6],[1:4],[1],[1], [1], [1], [2]}';
 
 [BigDat_f] = harvest_canlab_funccols(studydir, Idx);
 ncontrast = numel(BigDat_f);
 for ii = 1:ncontrast
     % BigDat_f{ii}=  rescale(BigDat_f{ii}, 'csf_mean_var');
     BigDat_f{ii}=  rescale(BigDat_f{ii}, 'l2norm_images');
+        % BigDat_f{ii}=  rescale(BigDat_f{ii}, 'prctileimages');
     BigDat_f{ii}.dat  = BigDat_f{ii}.dat.*idx_vec(ii); % Change signs of the contrasts so that all contrasts are for positive effects
 end
 
@@ -102,76 +69,90 @@ ncontrast = numel(BigDat_f2);
 for ii = 1:ncontrast
     % BigDat_f2{ii}=  rescale(BigDat_f2{ii}, 'csf_mean_var');
     BigDat_f2{ii}=  rescale(BigDat_f2{ii}, 'l2norm_images');
+     % BigDat_f2{ii}=  rescale(BigDat_f2{ii}, 'prctileimages');
     BigDat_f2{ii}.dat  = BigDat_f2{ii}.dat.*-1; % Change signs of the contrasts so that all contrasts are for positive effects
 end
 BigDat_f = cat(2,BigDat_f, BigDat_f2);
 
-% Zunhammer studies
-BigDat_f(7) = [];
-c2 = cat(2,  {dir(studydir2).name})
-c2 = c2(3:end);
-ColNames_edit_full = cat(1,ColNames_edit',c2');
-ColNames_edit_full(7) = [];
-
-% c = qc_metrics_second_level(BigDat_f{1}); 
-[outMat, fieldNames] = collateContrastScalars(BigDat_f,@(c) qc_metrics_second_level(c));
-figure('Position',[0.5 0.5 640 480])
-imagesc(outMat)
-[m,n] = size(outMat);
-xticks(1:1:n)
-xticklabels(ColNames_edit)
-xtickangle(90)
-yticks(1:1:m)
-yticklabels(fieldNames)
-ax = gca;
-ax.XAxis.TickLabelInterpreter = 'none';
-ax.YAxis.TickLabelInterpreter = 'none';
-
-
-
 % Normalize to same space:
 data_cell = alignFmriDataToReference(BigDat_f, [2]);
 data_cell_rn = cellfun(@(x) harmonize_zero_preserve(x),data_cell,'UniformOutput',false);
+% data_cell_rn = data_cell ;
 
-
-k = 0;
-figure('Position',[0.5 0.5 1280 720])
-hold on
-for ii = 17:31
-    k = k+1;
-    subplot(4,4,k)
-    plotGlobalMeans(data_cell_rn{ii})
-    ylim([-0.5 0.5])
-    title(ColNames_edit_full{ii},'Interpreter','none')
-end
-
-
-st_vec = cat(2,[1 2 3 4 4 4 5 6 6 6 6 7 7 8 9 10],11:25);
-% C = (([1 1 -1 -1 -1 -1 1 1 1 1 -1 -1 -1 -1 1 ]+1)/2)+1;
-C = (([1 1 -1 -1 -1 -1 1 1 1 -1 -1 -1 -1 1 1 -1 -1 -1 1 1 -1 -1 -1 -1 -1 1 1 -1 1 1 1]+1)/2)+1;
 % C = C(1:16);
-% st_vec = st_vec(1:16);c 
+% st_vec = st_vec(1:16); 
 [tmap_iv, pmap_iv, df] = voxelwiseLM(data_cell_rn, C, st_vec);
 dsc = cellfun(@(x) x.dat',data_cell_rn,'UniformOutput',false);
 
-%% Run fixed effects
-plot_study_kmeans(dsc, 2, C )
+%% NPS masks
+ord = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\ratings_sort.mat');
+ord = ord.ord;
+Sgn_dat = apply_all_signatures(data_cell,'conditionnames',ColNames);
 
-computeContrastSimilarity(dsc,ColNames_edit);
-[c2,argsort] = sort(C);
-dsc2 = dsc(argsort);
-ColNames2 = ColNames_edit(argsort);
+Group_labels = ColNames_mat.group_var;
+del_idx = [4 8 10];
+Group_labels(del_idx)=[];
+Group_labels = Group_labels(ord);
+ 
+cl_mat = lines(length(unique(Group_labels)));
+labels = {'NPS','NPSpos','NPSneg','SIIPS','PINES','Rejection','VPS','FM_Multisens','FM_pain','Empathic_Care'};
 
-computeContrastSimilarity(dsc2 ,ColNames2 );
-computeContrastSimilarity_rsa(dsc2,ColNames2);
+fig = figure('Color','w','Position',[100 100 2400 1200]);
+hold on
+k = 0;
+showlegender = false; 
+showax = false;
+for zz = 1:length(labels)
+    k = k+1;
+    ax = subplot(5,2,k);
+    if zz==length(labels); showlegender = true; end
+    if zz==9||zz==length(labels); showax  = true; else; showax =false; end
+    eval(sprintf('cohensD = cohensD_table_wrapper(Sgn_dat.%s);',labels{zz}))
 
+    cohensD(del_idx,:)=[];
+    cohensD = cohensD(ord,:);
+
+
+   % plotCohensD_byGroup(cohensD,Group_labels,'Color',cl_mat,'Sorting',false)
+    % boxplot_table_sorted_by_median(T,Group_labels,'SortMode','Group')
+
+    [figOut, order] = plotCohensD_byGroup(cohensD, Group_labels, ...
+        'Axes', ax, ...         % tells function to plot into this subplot
+        'Colors', cl_mat, ...        % supply full color matrix matching canonical labels
+        'Sorting', false, ...
+        'ShowLegend', showlegender,...
+        'ShowXlabel', showax ,...
+        'FigureTitle',labels{zz}); 
+end
+
+%% Clustering
 % Apply parcellation
-atlasname = 'canlab2023_coarse_fmriprep20_1mm';
+atlasname = 'canlab2024_coarse_fmriprep20_2mm';
 atlas = load_atlas(atlasname);
-f_correct = cell(1,31);
-[parc_data_multi] = apply_parc_contrasiobj(data_cell_rn,atlas,f_correct);  
+f_correct = cell(1,30);
+[contrastCells] = apply_parc_contrasiobj(data_cell_rn,atlas,f_correct);  
 
-parc_data_multi = parc_data_multi(argsort);
-simMat = computeDistanceSimilarity_euc(parc_data_multi,ColNames2);
+% contrastCells: 1 x Nc, each cell Ns_c x Nparcels
+Nc = numel(contrastCells);
+n_sub = cellfun(@(x) size(x,1), contrastCells);
 
-plotMDSFromSimilarity(simMat, c2, ColNames2)
+% make big data matrix: rows = subjects, cols = parcels
+data = vertcat(contrastCells{:});   % (sum Ns_c) x Nparcels
+
+% create study label for each subject (useful for post-hoc summaries)
+studyLabel = repelem(1:Nc, n_sub)'; % column, same length as rows in data
+
+k_range = 2:8;
+nperm = 500;  % raise to 1k+ for final tests
+
+[cleanData, kept, removed, stats] = remove_low_variance_features(data, ...
+    'RelSTDThreshold', 1e-3, 'AbsSTDThreshold', 1e-8, 'Names', atlas.label_descriptions);
+
+stats = clusterdata_permtest(cleanData, ...
+    'k', k_range, ...
+    'distancemetric', 'correlation', ...
+    'linkagemethod', 'average', ...
+    'reducedims', true, ...
+    'nperm', nperm, ...
+    'doplot', true, ...
+    'verbose', true);
