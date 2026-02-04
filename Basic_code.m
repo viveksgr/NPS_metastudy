@@ -16,8 +16,6 @@ studydir = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain
 studydir2 = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\zunhammer2018_studies';
 ccode2 = num2cell(ones(1,15));
 [BigDat2, ~] = NPSMS_harvest_canlab_cols(studydir2, ccode2, 50);
-
-
 BigDat = cat(2,BigDat, BigDat2);
 lastRow = find(any(~isnan(BigDat),2), 1, 'last');
 if ~isempty(lastRow); BigDat = BigDat(1:lastRow, :);end
@@ -28,7 +26,7 @@ BigDat = l2normalize_columns(BigDat,'InvStd');
 BigDat_n = BigDat;
 idx_vec = sign(mean(BigDat_n,'omitmissing'));
 idx_mat = repmat(idx_vec,[size(BigDat,1),1]);
-BigDat_n = BigDat.*idx_mat;
+BigDat_n = -BigDat.*idx_mat;
 plot_sorted_bar_with_errors(BigDat_n, ColNames)
 
 %% Imaging Data
@@ -36,7 +34,7 @@ plot_sorted_bar_with_errors(BigDat_n, ColNames)
 %  stats = clusterdata_permtest(DATA_OBJ_CON{1, 1}.dat, 'k', [2:20], 'reducedims', true, 'ndims', 25);
 %  % desc = descriptives(DATA_OBJ_CON{1, 1}  , ['noverbose', 'plotcoverage']);
 %  % qc_metrics_second_level(DATA_OBJ_CON{1, 1});
-% % help robfit_parcelwise
+%  % help robfit_parcelwise
 ColNames_mat = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\labels.mat');
 ColNames = ColNames_mat.ColNames;
 Group_labels = ColNames_mat.group_var;
@@ -58,8 +56,8 @@ ncontrast = numel(BigDat_f);
 for ii = 1:ncontrast
     % BigDat_f{ii}=  rescale(BigDat_f{ii}, 'csf_mean_var');
     BigDat_f{ii}=  rescale(BigDat_f{ii}, 'l2norm_images');
-        % BigDat_f{ii}=  rescale(BigDat_f{ii}, 'prctileimages');
-    BigDat_f{ii}.dat  = BigDat_f{ii}.dat.*idx_vec(ii); % Change signs of the contrasts so that all contrasts are for positive effects
+    % BigDat_f{ii}=  rescale(BigDat_f{ii}, 'prctileimages');
+    BigDat_f{ii}.dat  = -BigDat_f{ii}.dat.*idx_vec(ii); % Change signs of the contrasts so that all contrasts are for positive effects
 end
 
 % Zunhammer studies
@@ -70,67 +68,103 @@ for ii = 1:ncontrast
     % BigDat_f2{ii}=  rescale(BigDat_f2{ii}, 'csf_mean_var');
     BigDat_f2{ii}=  rescale(BigDat_f2{ii}, 'l2norm_images');
      % BigDat_f2{ii}=  rescale(BigDat_f2{ii}, 'prctileimages');
-    BigDat_f2{ii}.dat  = BigDat_f2{ii}.dat.*-1; % Change signs of the contrasts so that all contrasts are for positive effects
+    BigDat_f2{ii}.dat  = BigDat_f2{ii}.dat; % Change signs of the contrasts so that all contrasts are for positive effects
 end
 BigDat_f = cat(2,BigDat_f, BigDat_f2);
 
+del_cell = [4 10 29];
+
 % Normalize to same space:
 data_cell = alignFmriDataToReference(BigDat_f, [2]);
+% Harmonize and negate
 data_cell_rn = cellfun(@(x) harmonize_zero_preserve(x),data_cell,'UniformOutput',false);
-% data_cell_rn = data_cell ;
 
-% C = C(1:16);
-% st_vec = st_vec(1:16); 
-[tmap_iv, pmap_iv, df] = voxelwiseLM(data_cell_rn, C, st_vec);
-dsc = cellfun(@(x) x.dat',data_cell_rn,'UniformOutput',false);
+% CSF
+nuisance_cell = cellfun(@(x) extract_wm_csf_comps(x,false), data_cell_rn,'UniformOutput',false);
+fun = @(V,X) regress_out_wm_csf(V, X, 'addIntercept',false,'verbose', false);
+data_cell_rn2 = cellfun(fun, data_cell_rn, nuisance_cell, 'UniformOutput', false);
+
+[tmap_iv, pmap_iv, df,ts] = voxelwiseLM(data_cell_rn, C, st_vec,1);
+
+
+
+% Normalization
+k = 0;
+figure('Position',[0.5 0.5 1280 720])
+hold on
+for ii = 1:30
+    k = k+1;
+    subplot(5,6,k)
+    plotGlobalMeans(data_cell_rn{ii})
+    ylim([-0.5 0.5])
+    title(ColNames{ii},'Interpreter','none')
+end
+
+% 
+% [outMat1, fieldNames] = collateContrastScalars(data_cell,@(c) qc_metrics_second_level(c));
+% [outMat2, fieldNames] = collateContrastScalars(data_cell_rn_csf,@(c) qc_metrics_second_level(c));
+% figure('Position',[0.5 0.5 640 480])
+% subplot(2,1,1)
+% imagesc(outMat1)
+% [m,n] = size(outMat1);
+% xticks([])
+% % xticklabels(ColNames)
+% xtickangle(90)
+% yticks(1:1:m)
+% yticklabels(fieldNames)
+% ax = gca;
+% ax.XAxis.TickLabelInterpreter = 'none';
+% ax.YAxis.TickLabelInterpreter = 'none';
+% subplot(2,1,2)
+% imagesc(outMat2)
+% [m,n] = size(outMat2);
+% xticks(1:1:n)
+% xticklabels(ColNames)
+% xtickangle(90)
+% yticks(1:1:m)
+% yticklabels(fieldNames)
+% ax = gca;
+% ax.XAxis.TickLabelInterpreter = 'none';
+% ax.YAxis.TickLabelInterpreter = 'none';
 
 %% NPS masks
 ord = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\ratings_sort.mat');
 ord = ord.ord;
-Sgn_dat = apply_all_signatures(data_cell,'conditionnames',ColNames);
+Sgn_dat = apply_all_signatures(data_cell_rn,'conditionnames',ColNames);
 
 Group_labels = ColNames_mat.group_var;
-del_idx = [4 8 10];
+del_idx = [4 10 29];
 Group_labels(del_idx)=[];
-Group_labels = Group_labels(ord);
+% Group_labels = Group_labels(ord);
  
 cl_mat = lines(length(unique(Group_labels)));
-labels = {'NPS','NPSpos','NPSneg','SIIPS','PINES','Rejection','VPS','FM_Multisens','FM_pain','Empathic_Care'};
-
-fig = figure('Color','w','Position',[100 100 2400 1200]);
+% labels = {'NPS','NPSpos','NPSneg','SIIPS','PINES','Rejection','VPS','FM_Multisens','FM_pain','Empathic_Care'};
+labels = {'NPS'};
+ax = figure('Color','w','Position',[100 100 2400 1200]);
 hold on
-k = 0;
-showlegender = false; 
-showax = false;
-for zz = 1:length(labels)
-    k = k+1;
-    ax = subplot(5,2,k);
-    if zz==length(labels); showlegender = true; end
-    if zz==9||zz==length(labels); showax  = true; else; showax =false; end
-    eval(sprintf('cohensD = cohensD_table_wrapper(Sgn_dat.%s);',labels{zz}))
-
-    cohensD(del_idx,:)=[];
-    cohensD = cohensD(ord,:);
-
+eval(sprintf('cohensD = cohensD_table_wrapper(Sgn_dat.%s);',labels{1}))
+cohensD(del_idx,:)=[];
+    % cohensD = cohensD(ord,:);
 
    % plotCohensD_byGroup(cohensD,Group_labels,'Color',cl_mat,'Sorting',false)
     % boxplot_table_sorted_by_median(T,Group_labels,'SortMode','Group')
 
     [figOut, order] = plotCohensD_byGroup(cohensD, Group_labels, ...
-        'Axes', ax, ...         % tells function to plot into this subplot
+     ...         % tells function to plot into this subplot
         'Colors', cl_mat, ...        % supply full color matrix matching canonical labels
-        'Sorting', false, ...
-        'ShowLegend', showlegender,...
-        'ShowXlabel', showax ,...
-        'FigureTitle',labels{zz}); 
-end
+        'Sorting', true, ...
+        'ShowLegend', true,...
+        'ShowXlabel', true ,...
+        'FigureTitle',labels{1}); 
+        
+
 
 %% Clustering
 % Apply parcellation
 atlasname = 'canlab2024_coarse_fmriprep20_2mm';
 atlas = load_atlas(atlasname);
 f_correct = cell(1,30);
-[contrastCells] = apply_parc_contrasiobj(data_cell_rn,atlas,f_correct);  
+[contrastCells] = apply_parc_contrasiobj(data_cell,atlas,f_correct);  
 
 % contrastCells: 1 x Nc, each cell Ns_c x Nparcels
 Nc = numel(contrastCells);
@@ -156,3 +190,131 @@ stats = clusterdata_permtest(cleanData, ...
     'nperm', nperm, ...
     'doplot', true, ...
     'verbose', true);
+
+
+%% Crosstab analysis
+[H,~,leafOrder] = dendrogram(stats.linkage_tree, 0); % 
+% how many leaves per study cluster in a given cluster partition?
+bestLabels = stats.best_cluster_labels; % length = number of rows (subjects)
+
+% your inputs:
+% studyLabel: 826×1 integer vector mapping subject->study
+% stats.best_cluster_labels: 826×1 integer vector of cluster labels (1 or 2 here)
+
+OUT = studyClusterCrosstab(studyLabel, stats.best_cluster_labels, 'nperm', 2000, 'targetCluster', 1);
+OUT2 = reorderContingencyRows(OUT, 'K', 2, 'Distance','correlation', 'Linkage','average', 'Plot', true);
+
+% quick inspect:
+imagesc(OUT2.contingencyProps_re)         % rows = studies, cols = clusters
+xlabel('Cluster'); ylabel('Study (index)');
+colorbar; title('Per-study proportion of subjects in each cluster');
+
+% study-level binary grouping:
+studyBinary = OUT.binaryGroup;    % length(unique(studyLabel))
+
+%% Study maps
+% % map subjects to clusters, but in dendrogram order:
+% clustersInLeafOrder = bestLabels(leafOrder);
+% tab = table(orderedStudyPerLeaf(:), clustersInLeafOrder(:), leafGroup(:));
+% % a quick cross-tab
+% crosstab(orderedStudyPerLeaf, clustersInLeafOrder)
+
+
+% Clusterwise maps
+[tmap_iv, pmap_iv, df] = voxelwiseLM(data_cell_rn(studyBinary), C(studyBinary), st_vec(studyBinary));
+
+
+%% Raw correlation NPS and pain ratings
+cohensD_NPS = cohensD_table_wrapper(Sgn_dat.NPS);
+cohensD_rawpain = cohensD_table_wrapper(BigDat_n);
+Group_labels = ColNames_mat.group_var;
+rem_idx = true(1,length(Group_labels));
+rem_idx([4 10 29])=false;
+
+P_NPS = cohensD_NPS.d(rem_idx);
+P_pain = cohensD_rawpain.d(rem_idx);
+% P_labels = Group_labels(rem_idx);
+P_labels = Group_labels2;
+cl_mat = lines(length(unique(P_labels)));
+
+uniqueGroups = categories(categorical(P_labels));
+colorIdx = zeros(sum(rem_idx),3);
+for i = 1:sum(rem_idx)
+    % find which canonical group this row belongs to (stable mapping)
+    colorIdx(i,:) = cl_mat(find(strcmp(string(uniqueGroups), string(P_labels(i)))),:);
+end
+plot_scatter_linear(P_NPS,P_pain,colorIdx)
+
+% [fog, st] = plotResidualsByMedianGroup(P_NPS, P_pain);
+% 
+%% Atlas
+
+% Apply parcellation
+atlasname = 'canlab2024_coarse_fmriprep20_2mm';
+atlas = load_atlas(atlasname);
+f_correct = cell(1,30);
+[contrastCells] = apply_parc_contrasiobj(data_cell_rn2,atlas,f_correct);  
+contrastCells(del_cell)=[];
+
+c_map = extract_roi_averages(tmap_iv, atlas);
+roi_means = zeros(1,length(atlas.labels));
+for nn=1:length(atlas.labels); roi_means(nn)=median(c_map(nn).dat); end
+
+idx = 1:length(atlas.labels);
+idx_pos = roi_means>ts(1);
+idx_neg = roi_means<-ts(2);
+idx = [idx(idx_pos) idx(idx_neg)];
+
+fun_demean = @(X) X-mean(X,'all'); 
+fun = @(X) X(:,idx);
+% [V_out, ~, ~] = regress_out_wm_csf(data_cell_rn{2}, nuisance_cell{2}, 'addIntercept',false);
+
+contrastCells_red_ = cellfun(fun_demean, contrastCells, 'UniformOutput', false);
+% contrastCells_red = cellfun(fun, contrastCells_red_, 'UniformOutput', false);
+% plotInterventionROIHeat(contrastCells_red)
+
+fun_avgsub = @(y) mean(y);
+contrastCells_y = cellfun(fun_avgsub, contrastCells_red_, 'UniformOutput', false);
+cm = vertcat(contrastCells_y{:});
+
+% % M is nROI x nInterventions
+% [fig, order, S] = spectralReorderAndPlot(cm', 'Labels', cohensD.Name, 'Affinity','corr', 'Title','ROI x Interventions (spectral reorder)');
+% 
+% % M is nStudy x nROI
+% [fig, order, clusterIdx] = heatmap_sorted_rows(cm, 'RowLabels', cohensD.Name, 'ColLabels', atlas.labels(idx));
+
+stats = clusterdata_permtest(cm, ...
+    'k', 2:6, ...
+    'distancemetric', 'correlation', ...
+    'linkagemethod', 'average', ...
+    'reducedims', false, ...
+    'nperm', 100, ...
+    'doplot', true, ...
+    'verbose', true);
+
+[cnum,argsort]=sort(stats.best_cluster_labels);
+cm2 = cm(argsort,:);
+
+% % Raw figure
+imagesc(cm2(:,idx))
+xticks(1:length(idx))
+xticklabels(atlas.labels(idx))
+yticks(1:size(cm,1))
+% yticklabels(c2(argsort))
+xline(sum(idx_pos)+0.5)
+yline(sum(cnum==1)+0.5)
+yline(sum(cnum<3)+0.5)
+hold on
+ax = gca;
+ax.XAxis.TickLabelInterpreter = 'none';
+ax.YAxis.TickLabelInterpreter = 'none';
+
+% Cluster
+
+%% GLM
+C = stats.best_cluster_labels;
+C(or(C==1,C==2))=0;
+C(C>1)=1;
+data_cell_rn2(del_cell)=[];
+st_vec(del_cell)=[];
+[tmap_iv, pmap_iv, df] = voxelwiseLM(data_cell_rn2, C, st_vec,2);

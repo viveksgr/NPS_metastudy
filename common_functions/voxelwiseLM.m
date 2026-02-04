@@ -1,4 +1,4 @@
-function [tmap_iv, pmap_iv, df] = voxelwiseLM(data_cell, C, st_vec, nuisance_cell)
+function [tmap_iv, pmap_iv, df,t_thr] = voxelwiseLM(data_cell, C, st_vec, regnum,nuisance_cell)
 % VOXELWISELM   Voxel‐wise linear model across studies + nuisance
 %
 %   [tmap_iv, pmap_iv, df] = voxelwiseLM(data_cell, C, nuisance_cell)
@@ -12,8 +12,8 @@ function [tmap_iv, pmap_iv, df] = voxelwiseLM(data_cell, C, st_vec, nuisance_cel
 %   tmap_iv      – image_vector of voxel‐wise t‐stats for the study contrast
 %   pmap_iv      – image_vector of two‐tailed p‐values
 %   df           – degrees of freedom = N - rank(X)
-
-if nargin<4, nuisance_cell = cell(size(data_cell)); end
+% regnum = 1;
+if nargin<5, nuisance_cell = cell(size(data_cell)); end
 S = numel(data_cell);
 assert(numel(C)==S,'Contrast length must match number of studies');
 
@@ -56,12 +56,12 @@ end
 [N, ~] = size(Y);
 
 % Column reduction:
-idxs = find(diff(diff(st_vec))==-1)+1;
-M2 = M2(:,st_vec(idxs));
+% idxs = find(diff(diff(st_vec))==-1)+1;
+% M2 = M2(:,st_vec(idxs));
 
 % 2) Design matrix X = [1 G Z]
-% X = [ones(N,1), G, Z, M]; % Change to add custom regressors
-X = [ones(N,1), Z, M];
+X = [ones(N,1), G, Z, M]; % Change to add custom regressors
+% X = [ones(N,1), Z, M];
 
 % Orthog the study design
 % [X, ~] = makeInterceptGrandMean(X, 3:size(X,2));
@@ -86,13 +86,16 @@ XtX_pinv = pinv(X'*X);               % (p×p) pseudoinverse
 
 % 6) t‐stat for the study‐contrast regressor (column 2 of B)
 %    (or whichever column index your contrast lives in)
-col       =1;                       % e.g. column 2 for G regressor
+col       =regnum;                       % e.g. column 2 for G regressor
 varB_col  = mse .* XtX_pinv(col,col); % 1×V
 tvals     = B(col,:) ./ sqrt(varB_col);
 
 % 6) two‐tailed p‐values
 pvals = 2*tcdf(-abs(tvals), df);
 [p1,~] = fdr_benjhoc(pvals);
+
+t_thr(1) = tinv(1-fdr_benjhoc( tcdf((tvals), df)),df);
+t_thr(2) = tinv(1-fdr_benjhoc( tcdf(-(tvals), df)),df);
 
 % 7) wrap as image_vectors
 
@@ -106,6 +109,18 @@ tiv_rs = resample_space(tmap_iv, tmpl);
 
 % T = tinv(1-0.025, df);
 T = tinv(1-p1,df);
+% 
+% save_image_vector_as_nifti(tiv_rs, 'statmap.nii')     
+% % save stat image to nifti
+% 
+% % run MatlabTFCE (example; follow that repo's API)
+% tfce_img = matlab_tfce('statmap.nii');
+% 
+% % load TFCE result into canlab
+% tfce_iv = image_vector('image_names','tfce_statmap.nii');
+
+
+
 plot_signed_threshold(tiv_rs, T)
 % montage(tiv_rs, 'trans', 0.2,'montagetype','full','threshold',    T,'cmaprange',    [min(tmap_iv.dat) max(tmap_iv.dat)]);
 % 

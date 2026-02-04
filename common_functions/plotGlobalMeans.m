@@ -27,9 +27,9 @@ function plotGlobalMeans(fmridat)
         'MarkerSize',6, ...
         'LineWidth',1);
 
-    xlabel('Image index');
-    ylabel('Global mean intensity');
-    title('Global Mean \pm 1 SD across voxels');
+    % xlabel('Image index');
+    % ylabel('Global mean intensity');
+    % title('Global Mean \pm 1 SD across voxels');
     grid on;
     box on;
 

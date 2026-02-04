@@ -100,3 +100,45 @@ parc_data_multi = parc_data_multi(argsort);
 simMat = computeDistanceSimilarity_euc(parc_data_multi,ColNames2);
 
 plotMDSFromSimilarity(simMat, c2, ColNames2)
+
+%% NPS pos and neg
+%% NPS Pos neg maps
+% ord = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\ratings_sort.mat');
+ord = OUT2.studyIDs_re;
+Sgn_dat = apply_all_signatures(data_cell_rn,'conditionnames',ColNames);
+
+Group_labels = ColNames_mat.group_var;
+% del_idx = [4 8 10];
+Group_labels = Group_labels(ord);
+% Group_labels(del_idx)=[];
+
+cl_mat = lines(length(unique(Group_labels)));
+labels = {'NPSpos','NPSneg'};
+
+fig = figure('Color','w','Position',[100 100 640 480]);
+hold on
+k = 0;
+showlegender = true; 
+showax = true;
+for zz = 1:length(labels)
+    k = k+1;
+    ax = subplot(1,2,k);
+    % if zz==length(labels); showlegender = true; end
+    % if zz==9||zz==length(labels); showax  = true; else; showax =false; end
+    eval(sprintf('cohensD = cohensD_table_wrapper(Sgn_dat.%s);',labels{zz}))
+
+    % cohensD(del_idx,:)=[];
+    cohensD = cohensD(ord,:);
+
+
+   % plotCohensD_byGroup(cohensD,Group_labels,'Color',cl_mat,'Sorting',false)
+    % boxplot_table_sorted_by_median(T,Group_labels,'SortMode','Group')
+
+    [figOut, order] = plotCohensD_byGroup(cohensD, Group_labels, ...
+        'Axes', ax, ...         % tells function to plot into this subplot
+        'Colors', cl_mat, ...        % supply full color matrix matching canonical labels
+        'Sorting', false, ...
+        'ShowLegend', showlegender,...
+        'ShowXlabel', showax ,...
+        'FigureTitle',labels{zz}); 
+end
