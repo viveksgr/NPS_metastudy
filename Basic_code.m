@@ -8,7 +8,7 @@ ColNames_mat = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_
 ColNames = ColNames_mat.ColNames;
 Group_labels = ColNames_mat.group_var;
 
-ccode = {[1],[3],[21],[10,11,12],[15:18],[9],[19],[1],[3],[1]}';
+ccode = {[1],[3],[4],[21],[10,11,12],[15:18],[9],[19],[1],[3],[1]}';
 studydir = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\included_studies';
 [BigDat, ~] = NPSMS_harvest_canlab_cols(studydir, ccode, 50);
 
@@ -155,6 +155,7 @@ cohensD(del_idx,:)=[];
         'Sorting', true, ...
         'ShowLegend', true,...
         'ShowXlabel', true ,...
+        'GroupGap',2,...
         'FigureTitle',labels{1}); 
         
 
@@ -226,15 +227,17 @@ studyBinary = OUT.binaryGroup;    % length(unique(studyLabel))
 
 %% Raw correlation NPS and pain ratings
 cohensD_NPS = cohensD_table_wrapper(Sgn_dat.NPS);
+cohensD_SIIPS = cohensD_table_wrapper(Sgn_dat.SIIPS);
 cohensD_rawpain = cohensD_table_wrapper(BigDat_n);
 Group_labels = ColNames_mat.group_var;
 rem_idx = true(1,length(Group_labels));
 rem_idx([4 10 29])=false;
 
 P_NPS = cohensD_NPS.d(rem_idx);
+P_SIIPS = cohensD_SIIPS.d(rem_idx);
 P_pain = cohensD_rawpain.d(rem_idx);
-% P_labels = Group_labels(rem_idx);
-P_labels = Group_labels2;
+P_labels = Group_labels(rem_idx);
+% P_labels = Group_labels2;
 cl_mat = lines(length(unique(P_labels)));
 
 uniqueGroups = categories(categorical(P_labels));
@@ -244,9 +247,10 @@ for i = 1:sum(rem_idx)
     colorIdx(i,:) = cl_mat(find(strcmp(string(uniqueGroups), string(P_labels(i)))),:);
 end
 plot_scatter_linear(P_NPS,P_pain,colorIdx)
+scatter(P_NPS,P_SIIPS,36,colorIdx,'filled', 'MarkerEdgeColor', 'k')
+% plot_scatter_linear(P_NPS,P_SIIPS,colorIdx)
 
-% [fog, st] = plotResidualsByMedianGroup(P_NPS, P_pain);
-% 
+% [fog, st] = plotResidualsByMedianGroup(P_NPS, P_pain); 
 %% Atlas
 
 % Apply parcellation
@@ -277,6 +281,13 @@ fun_avgsub = @(y) mean(y);
 contrastCells_y = cellfun(fun_avgsub, contrastCells_red_, 'UniformOutput', false);
 cm = vertcat(contrastCells_y{:});
 
+opts.nComp = 10;
+opts.doPCA = true;
+opts.nPC   = 50;
+opts.icaMethod = 'fastica';
+[studyWeights, A_mix, S_maps, subj2study] = study_level_ICA( contrastCells_red_, opts);
+% then cluster studyWeights (S x P)
+
 % % M is nROI x nInterventions
 % [fig, order, S] = spectralReorderAndPlot(cm', 'Labels', cohensD.Name, 'Affinity','corr', 'Title','ROI x Interventions (spectral reorder)');
 % 
@@ -284,13 +295,21 @@ cm = vertcat(contrastCells_y{:});
 % [fig, order, clusterIdx] = heatmap_sorted_rows(cm, 'RowLabels', cohensD.Name, 'ColLabels', atlas.labels(idx));
 
 stats = clusterdata_permtest(cm, ...
-    'k', 2:6, ...
+    'k', 2:3, ...
     'distancemetric', 'correlation', ...
     'linkagemethod', 'average', ...
     'reducedims', false, ...
     'nperm', 100, ...
     'doplot', true, ...
     'verbose', true);
+
+% Xticks
+gca
+x2 = str2num(xticklabels);
+[~,argsort ] = sort(x2);
+ax = gca;
+ax.TickLabelInterpreter = 'none';
+xticklabels(P_labels(argsort))
 
 [cnum,argsort]=sort(stats.best_cluster_labels);
 cm2 = cm(argsort,:);
@@ -318,3 +337,59 @@ C(C>1)=1;
 data_cell_rn2(del_cell)=[];
 st_vec(del_cell)=[];
 [tmap_iv, pmap_iv, df] = voxelwiseLM(data_cell_rn2, C, st_vec,2);
+
+
+%% subject-wise c
+[meanr, stdr] = cellfun(@(x) mean_subject_corr(x),data_cell_rn,'UniformOutput',true);
+
+[mean_r_crs, se_r_crs, mean_z, se_z, nPairs] = mean_crossstudy_subject_corr(data_cell_rn);
+
+cohensD_subjerr = cohensD;
+cohensD_subjerr.d = meanr(rem_idx)';%'-mean_r_crs(rem_idx);
+cohensD_subjerr.SE = stdr(rem_idx)';
+[figOut, order] = plotCohensD_byGroup(cohensD_subjerr, P_labels, ...
+     ...         % tells function to plot into this subplot
+        'Colors', cl_mat, ...        % supply full color matrix matching canonical labels
+        'Sorting', true, ...
+        'ShowLegend', true,...
+        'ShowXlabel', true ,...
+        'GroupGap',2,...
+        'FigureTitle',labels{1}); 
+
+inc_idx = true(1,27);
+inc_idx(13) = false;
+figure()
+hold on
+subplot(1,3,1)
+plot_scatter_linear(cohensD_subjerr.d(inc_idx) ,P_pain(inc_idx),colorIdx(inc_idx,:))
+xlabel('Cross subject correlation')
+ylabel('pain scores')
+subplot(1,3,2)
+plot_scatter_linear(cohensD_subjerr.d(inc_idx) ,P_SIIPS(inc_idx),colorIdx(inc_idx,:))
+xlabel('Cross subject correlation')
+ylabel('SIIPS')
+subplot(1,3,3)
+plot_scatter_linear(cohensD_subjerr.d(inc_idx) ,P_NPS(inc_idx),colorIdx(inc_idx,:))
+xlabel('Cross subject correlation')
+ylabel('NPS')
+
+%% subject-wise c
+
+[tbl, X, groupVec, varNames] = createMixedDesign(P_labels, cohensD_subjerr.n, cohensD_subjerr.d, {'mean_corr'});
+
+V = Sgn_dat.NPS(:,rem_idx);
+V = V{:,:};
+V = V(:);
+V(isnan(V))=[];
+
+tbl.Y = V;
+lme = fitlme(tbl, 'Y ~ 1 + StudyLabel + mean_corr + (1|StudyID)');
+disp(lme);
+
+
+V = BigDat_n(:,rem_idx);
+V = V(:);
+V(isnan(V))=[];
+tbl.Y = V;
+lme = fitlme(tbl, 'Y ~ 1 + StudyLabel + mean_corr + (1|StudyID)');
+disp(lme);

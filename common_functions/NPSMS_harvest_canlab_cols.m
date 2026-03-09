@@ -39,9 +39,9 @@ NameCols  = {};
 maxRows   = 0;
 
 for s = 1:S
-    if s==3
-        'beep'
-    end
+    % if s==3
+    %     'beep'
+    % end
     fprintf('Study %d/%d  (%s)\n', s, S, subdirs(s).name);
 
     % locate canlab_dataset*/canlab*.mat
