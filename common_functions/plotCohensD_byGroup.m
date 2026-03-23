@@ -149,7 +149,7 @@ se = Tsorted.SE;
 for i = 1:numel(x)
     xi = x(i);
     yi = y(i);
-    s = se(i);
+    s = se(i)*1.96;
     % vertical line
     line(ax, [xi xi], [yi - s, yi + s], 'Color', [0.2 0.2 0.2], 'LineWidth', 1);
     % horizontal caps

@@ -60,8 +60,8 @@ end
 % M2 = M2(:,st_vec(idxs));
 
 % 2) Design matrix X = [1 G Z]
-X = [ones(N,1), G, Z, M]; % Change to add custom regressors
-% X = [ones(N,1), Z, M];
+% X = [ones(N,1), G, Z, M]; % Change to add custom regressors
+X = [ones(N,1), Z, M];
 
 % Orthog the study design
 % [X, ~] = makeInterceptGrandMean(X, 3:size(X,2));
@@ -104,11 +104,14 @@ tmap_iv = image_vector('volInfo',volInfo,'dat',tvals(:));
 pmap_iv = image_vector('volInfo',volInfo,'dat',pvals(:));
 
 tmpl = image_vector('image_names','fmriprep20_template.nii');
-tiv_rs = resample_space(tmap_iv, tmpl);
-% montage(tiv_rs, 'trans', 0.5,'montagetype','full');
 
+% tmpl = image_vector('image_names','gray_matter_mask.nii');
+tiv_rs = resample_space(tmap_iv, tmpl);
+
+% tiv_rs = tmap_iv;
 % T = tinv(1-0.025, df);
 T = tinv(1-p1,df);
+% montage(tiv_rs, 'trans', 0.5,'montagetype','full');
 
 % Projection on NPS
 % tmap_iv.dat = tmap_iv.dat.*mysignature.dat;  
@@ -121,8 +124,6 @@ T = tinv(1-p1,df);
 % 
 % % load TFCE result into canlab
 % tfce_iv = image_vector('image_names','tfce_statmap.nii');
-
-
 
 plot_signed_threshold(tiv_rs, T)
 % montage(tiv_rs, 'trans', 0.2,'montagetype','full','threshold',    T,'cmaprange',    [min(tmap_iv.dat) max(tmap_iv.dat)]);

@@ -1,20 +1,19 @@
 addpath(genpath('C:\Work\Toolboxes'))
-addpath(genpath('C:\Work\mind\toolboxes'))
 addpath('C:\Work\NPS_metastudy\common_functions')
 
 %% Behavioral Datasets
 % Non Placebo studies
-ColNames_mat = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\labels.mat');
+ColNames_mat = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\labels_update.mat');
 ColNames = ColNames_mat.ColNames;
-Group_labels = ColNames_mat.group_var;
+Group_labels = ColNames_mat.Group_labels;
 
-ccode = {[1],[3],[4],[21],[10,11,12],[15:18],[9],[19],[1],[3],[1]}';
+ccode = {[1],[3],[4],[21],[10,11,12],[15:17],[9],[19],[1],[3],[1]}';
 studydir = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\included_studies';
 [BigDat, ~] = NPSMS_harvest_canlab_cols(studydir, ccode, 50);
 
 % Placebo studies
 studydir2 = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\zunhammer2018_studies';
-ccode2 = num2cell(ones(1,15));
+ccode2 = num2cell(ones(1,16));
 [BigDat2, ~] = NPSMS_harvest_canlab_cols(studydir2, ccode2, 50);
 BigDat = cat(2,BigDat, BigDat2);
 lastRow = find(any(~isnan(BigDat),2), 1, 'last');
@@ -35,47 +34,48 @@ plot_sorted_bar_with_errors(BigDat_n, ColNames)
 %  % desc = descriptives(DATA_OBJ_CON{1, 1}  , ['noverbose', 'plotcoverage']);
 %  % qc_metrics_second_level(DATA_OBJ_CON{1, 1});
 %  % help robfit_parcelwise
-ColNames_mat = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\labels.mat');
-ColNames = ColNames_mat.ColNames;
-Group_labels = ColNames_mat.group_var;
-idx_vec = [1 -1 -1 -1 1 -1 1 1 1 1 1 -1 -1 -1 1 ones(1,15)]';
+idx_vec = [1 -1 1 -1 -1 1 -1 1 1 1 1 -1 -1 -1 1 ones(1,16)]';
 
-studydir = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\included_studies';
-studydir2 = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\zunhammer2018_studies';
+st_vec_ind = cellfun(@(x) numel(x),ccode);
+st_vec = [];
+kk = 0;
+for ii=1:length(st_vec_ind) 
+    for jj = 1:st_vec_ind(ii)
+        kk = kk+1;
+        st_vec(kk)=ii;
+    end
+end
 
-% Some fixes
-% ColNames(4) = [];
-% Group_labels(4) = [];
-% idx_vec(4) = [];
-st_vec = cat(2,[1 2 3 4 4 4 5 5 5 5 6 7 8 9 10],11:25);
-C = (([1 1 1 -1 -1 -1 1 1 1 -1 -1 -1 -1 1 1 -1 -1 -1 1 1 -1 -1 -1 -1 -1 1 1 -1 1 1]+1)/2)+1;
-Idx = {[1], [1], [2], [4:6],[1:4],[1],[1], [1], [1], [2]}';
+st_vec = cat(2,st_vec,12:27);
+% Dummy contrast
+C = (([1 1 1 1 -1 -1 -1 1 1 -1 -1 -1 -1 1 1 -1 -1 -1 1 1 -1 -1 -1 -1 -1 1 1 -1 1 1 -1]+1)/2)+1;
 
+Idx = {[1], [1], [1], [2], [4:6],[1:3],[1],[1], [1], [1], [2]}';
 [BigDat_f] = harvest_canlab_funccols(studydir, Idx);
 ncontrast = numel(BigDat_f);
 for ii = 1:ncontrast
     % BigDat_f{ii}=  rescale(BigDat_f{ii}, 'csf_mean_var');
     BigDat_f{ii}=  rescale(BigDat_f{ii}, 'l2norm_images');
     % BigDat_f{ii}=  rescale(BigDat_f{ii}, 'prctileimages');
-    BigDat_f{ii}.dat  = -BigDat_f{ii}.dat.*idx_vec(ii); % Change signs of the contrasts so that all contrasts are for positive effects
+    BigDat_f{ii}.dat  = -BigDat_f{ii}.dat.*idx_vec(ii); % Change signs of the contrasts so that all contrasts are for analgesia
 end
 
 % Zunhammer studies
-Idx2 = num2cell(ones(15,1));
+Idx2 = num2cell(ones(16,1));
 [BigDat_f2] = harvest_canlab_funccols(studydir2, Idx2);
 ncontrast = numel(BigDat_f2);
 for ii = 1:ncontrast
     % BigDat_f2{ii}=  rescale(BigDat_f2{ii}, 'csf_mean_var');
     BigDat_f2{ii}=  rescale(BigDat_f2{ii}, 'l2norm_images');
      % BigDat_f2{ii}=  rescale(BigDat_f2{ii}, 'prctileimages');
-    BigDat_f2{ii}.dat  = BigDat_f2{ii}.dat; % Change signs of the contrasts so that all contrasts are for positive effects
+    BigDat_f2{ii}.dat  = BigDat_f2{ii}.dat; % Change signs of the contrasts so that all contrasts are for analgesia
 end
 BigDat_f = cat(2,BigDat_f, BigDat_f2);
-
-del_cell = [4 10 29];
-
-% Normalize to same space:
+% Normalize
 data_cell = alignFmriDataToReference(BigDat_f, [2]);
+
+%% Preprocessing/Cleanup
+
 % Harmonize and negate
 data_cell_rn = cellfun(@(x) harmonize_zero_preserve(x),data_cell,'UniformOutput',false);
 
@@ -83,10 +83,10 @@ data_cell_rn = cellfun(@(x) harmonize_zero_preserve(x),data_cell,'UniformOutput'
 nuisance_cell = cellfun(@(x) extract_wm_csf_comps(x,false), data_cell_rn,'UniformOutput',false);
 fun = @(V,X) regress_out_wm_csf(V, X, 'addIntercept',false,'verbose', false);
 data_cell_rn2 = cellfun(fun, data_cell_rn, nuisance_cell, 'UniformOutput', false);
-
-[tmap_iv, pmap_iv, df,ts] = voxelwiseLM(data_cell_rn, C, st_vec,1);
-
-
+% CSF
+% nuisance_cell = cellfun(@(x) extract_wm_csf_comps(x,false), data_cell,'UniformOutput',false);
+% data_cell_2 = cellfun(fun, data_cell, nuisance_cell, 'UniformOutput', false);
+[tmap_iv, pmap_iv, df,ts] = voxelwiseLM(data_cell_rn2, C, st_vec,1);
 
 % Normalization
 k = 0;
@@ -100,7 +100,39 @@ for ii = 1:30
     title(ColNames{ii},'Interpreter','none')
 end
 
-% 
+% Remove wm
+% [dx, dx2] = data_cell{1}.normalize_gm_by_wm_csf;
+
+fun = @(X) normalize_gm_by_wm_csf(X);
+data_cell_rn2 = cellfun(fun, data_cell_rn, 'UniformOutput', false);
+data_cell2 = cellfun(fun, data_cell, 'UniformOutput', false);
+data_cell2_rn = cellfun(@(x) harmonize_zero_preserve(x),data_cell2,'UniformOutput',false);
+
+
+% WM mapping
+fun_wm = @(X) extract_gray_white_csf(X, 'masks', ...
+    {'gray_matter_mask.nii', 'canonical_white_matter_thrp5_ero1.nii', ...
+    'canonical_ventricles_thrp5_ero1.nii'});
+nstud = vertcat(cellfun(@(x) size(x.dat,2),data_cell_rn));
+data_cell_wm = cellfun(fun_wm, data_cell_rn2, 'UniformOutput', false);
+data_wm = vertcat(data_cell_wm{:});
+
+
+[tbl, X, groupVec, varNames] = createMixedDesign(Group_labels, nstud);
+uniqueGroups = categories(categorical(Group_labels));
+colorIdx = zeros(length(data_wm(:,1)),3);
+cl_mat = lines(length(unique(Group_labels)));
+for i = 1:length(data_wm(:,1))
+    % find which canonical group this row belongs to (stable mapping)
+    colorIdx(i,:) = cl_mat(find(strcmp(string(uniqueGroups), string(tbl{i,2}))),:);
+end
+figure('Position',[0.5 0.5 640 480])
+plot_scatter_linear(data_wm(:,3),data_wm(:,1),colorIdx)
+xlabel('CSF')
+ylabel('GM')
+% legend(uniqueGroups)
+
+
 % [outMat1, fieldNames] = collateContrastScalars(data_cell,@(c) qc_metrics_second_level(c));
 % [outMat2, fieldNames] = collateContrastScalars(data_cell_rn_csf,@(c) qc_metrics_second_level(c));
 % figure('Position',[0.5 0.5 640 480])
@@ -130,36 +162,29 @@ end
 %% NPS masks
 ord = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\ratings_sort.mat');
 ord = ord.ord;
-Sgn_dat = apply_all_signatures(data_cell_rn,'conditionnames',ColNames);
+Sgn_dat = apply_all_signatures(data_cell2,'conditionnames',ColNames);
+% Sgn_dat2 = apply_nps(data_cell,'conditionnames',ColNames);
 
-Group_labels = ColNames_mat.group_var;
-del_idx = [4 10 29];
-Group_labels(del_idx)=[];
-% Group_labels = Group_labels(ord);
- 
 cl_mat = lines(length(unique(Group_labels)));
 % labels = {'NPS','NPSpos','NPSneg','SIIPS','PINES','Rejection','VPS','FM_Multisens','FM_pain','Empathic_Care'};
 labels = {'NPS'};
 ax = figure('Color','w','Position',[100 100 2400 1200]);
 hold on
 eval(sprintf('cohensD = cohensD_table_wrapper(Sgn_dat.%s);',labels{1}))
-cohensD(del_idx,:)=[];
-    % cohensD = cohensD(ord,:);
 
-   % plotCohensD_byGroup(cohensD,Group_labels,'Color',cl_mat,'Sorting',false)
-    % boxplot_table_sorted_by_median(T,Group_labels,'SortMode','Group')
+% cohensD = cohensD(ord,:);
+% plotCohensD_byGroup(cohensD,Group_labels,'Color',cl_mat,'Sorting',false)
+% boxplot_table_sorted_by_median(T,Group_labels,'SortMode','Group')
 
-    [figOut, order] = plotCohensD_byGroup(cohensD, Group_labels, ...
-     ...         % tells function to plot into this subplot
-        'Colors', cl_mat, ...        % supply full color matrix matching canonical labels
-        'Sorting', true, ...
-        'ShowLegend', true,...
-        'ShowXlabel', true ,...
-        'GroupGap',2,...
-        'FigureTitle',labels{1}); 
+[figOut, ord] = plotCohensD_byGroup(cohensD, Group_labels, ...
+    ...         % tells function to plot into this subplot
+    'Colors', cl_mat, ...        % supply full color matrix matching canonical labels
+    'Sorting', true, ...
+    'ShowLegend', true,...
+    'ShowXlabel', true ,...
+    'GroupGap',2,...
+    'FigureTitle',labels{1});
         
-
-
 %% Clustering
 % Apply parcellation
 atlasname = 'canlab2024_coarse_fmriprep20_2mm';
@@ -343,7 +368,7 @@ st_vec(del_cell)=[];
 [meanr, stdr] = cellfun(@(x) mean_subject_corr(x),data_cell_rn,'UniformOutput',true);
 
 [mean_r_crs, se_r_crs, mean_z, se_z, nPairs] = mean_crossstudy_subject_corr(data_cell_rn);
-
+rem_idx = 1:31;
 cohensD_subjerr = cohensD;
 cohensD_subjerr.d = meanr(rem_idx)';%'-mean_r_crs(rem_idx);
 cohensD_subjerr.SE = stdr(rem_idx)';
@@ -356,8 +381,8 @@ cohensD_subjerr.SE = stdr(rem_idx)';
         'GroupGap',2,...
         'FigureTitle',labels{1}); 
 
-inc_idx = true(1,27);
-inc_idx(13) = false;
+inc_idx = true(1,31);
+% inc_idx(13) = false;
 figure()
 hold on
 subplot(1,3,1)
