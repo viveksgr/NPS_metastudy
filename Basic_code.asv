@@ -294,9 +294,6 @@ yticklabels(atlas.labels(idxsort))
 %     llist{kk} = llist_(lid==kk);
 % end
 
-
-
-
 tmpl = image_vector('image_names', 'fmriprep20_template.nii');
 tiv_rs = resample_space(tmap_iv, tmpl);
 T = tinv(1 - p1, df);

@@ -3,6 +3,7 @@ function V_out = harmonize_zero_preserve(V_in, varargin)
 %
 % V_out = harmonize_zero_preserve(V_in)
 % V_out = harmonize_zero_preserve(V_in, 'vectorized', true, 'verbose', true)
+% V_out = harmonize_zero_preserve(V_in, 'jitter', 0.25)
 %
 % Input:
 %   V_in        - canlab contrast/fmri object (must have field/property .dat)
@@ -10,6 +11,16 @@ function V_out = harmonize_zero_preserve(V_in, varargin)
 % Options:
 %   'vectorized' - (false) try a faster vectorized approach (may use lots of RAM)
 %   'verbose'    - (false) print progress
+%   'jitter'     - (0) sub-grid Gaussian noise factor. Adds
+%                  randn(size(q0)) * jitter/nv to q0 before the zero
+%                  override. Breaks the exact rank-based grid so
+%                  downstream OLS outputs are continuous. Values of
+%                  0.2-0.3 are small relative to grid spacing (1/nv)
+%                  and do not meaningfully change distributions.
+%                  Set to 0 to disable (default, preserves original
+%                  behavior).
+%   'seed'       - ([]) random seed for jitter; leave empty for
+%                  non-deterministic
 %
 % Output:
 %   V_out       - same object/class as V_in, with V_out.dat replaced by the
@@ -23,9 +34,17 @@ function V_out = harmonize_zero_preserve(V_in, varargin)
 p = inputParser;
 addParameter(p,'vectorized',false,@islogical);
 addParameter(p,'verbose',false,@islogical);
+addParameter(p,'jitter',0,@(x) isnumeric(x) && isscalar(x) && x >= 0);
+addParameter(p,'seed',[],@(x) isempty(x) || (isnumeric(x) && isscalar(x)));
 parse(p,varargin{:});
 do_vec = p.Results.vectorized;
 do_verbose = p.Results.verbose;
+jitter_sd = p.Results.jitter;
+seed = p.Results.seed;
+
+if jitter_sd > 0 && ~isempty(seed)
+    rng(seed);
+end
 
 % Copy object to output
 V_out = V_in;
@@ -55,6 +74,10 @@ if do_vec
         q = (rv - 0.5) ./ nv;           % (0.5/nv ... (nv-0.5)/nv)
         prop_neg = sum(xv < 0) / nv;
         q0 = q - prop_neg;              % shift -> distance from zero
+        % optional sub-grid jitter (BEFORE zero override)
+        if jitter_sd > 0
+            q0 = q0 + randn(size(q0)) * (jitter_sd / nv);
+        end
         % preserve exact zeros
         iszero = (xv == 0);
         if any(iszero)
@@ -80,6 +103,10 @@ else
         q = (rv - 0.5) ./ nv;           % quantiles (0..1)
         prop_neg = sum(xv < 0) / nv;    % proportion negative
         q0 = q - prop_neg;              % quantile distance-from-zero
+        % optional sub-grid jitter (BEFORE zero override)
+        if jitter_sd > 0
+            q0 = q0 + randn(size(q0)) * (jitter_sd / nv);
+        end
         % force zeros to be exactly zero
         iszero = (xv == 0);
         if any(iszero)

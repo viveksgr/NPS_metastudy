@@ -124,8 +124,8 @@ end
 col = regnum;
 varB_col = mse .* XtX_pinv(col, col);
 tvals = B(col, :) ./ sqrt(varB_col);
-% 
-% report = diagnose_Y_matrix(Y);
+
+report = diagnose_Y_matrix(Y);
 pvals = 2 * tcdf(-abs(tvals), df);
 [p1, ~] = fdr_benjhoc(pvals);
 

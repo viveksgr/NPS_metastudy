@@ -1,7 +1,7 @@
 function plot_scatter_linear(Px,Py,colorIdx)
 
 % figure()
-scatter(Px,Py,18,colorIdx,'filled', 'MarkerEdgeColor', 'k')
+scatter(Px,Py,36,colorIdx,'filled', 'MarkerEdgeColor', 'k')
 hold on
 P = [ones(size(Px)) Px];
 b = P\Py;
