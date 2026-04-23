@@ -137,8 +137,8 @@ end
 % pull data (x from table1, y from table2)
 x  = outTbl1.d;
 y  = outTbl2.d;
-xe = outTbl1.SE * 1.96;
-ye = outTbl2.SE * 1.96;
+xe = outTbl1.SE;
+ye = outTbl2.SE;
 
 % --- OLS regression of y on x (for line + stats panel)
 stats = struct('slope',NaN,'intercept',NaN,'slope_SE',NaN,'slope_p',NaN, ...

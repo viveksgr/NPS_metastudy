@@ -7,6 +7,7 @@ addpath('C:\Work\Toolboxes_general\spm12')
 ColNames_mat = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\labels_update.mat');
 ColNames = ColNames_mat.ColNames;
 Group_labels = ColNames_mat.Group_labels;
+group_ = cellfun(@(x) strcmp(x,'Placebo')||strcmp(x,'Placebo+'), Group_labels);
 
 ccode = {[1],[3],[4],[21],[10,11,12],[15:17],[9],[19],[1],[3],[1]}';
 studydir = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\included_studies';
@@ -149,13 +150,15 @@ eval(sprintf('cohensD2 = cohensD_table_wrapper(Sgn_dat.%s);',labels{2}))
     'ShowXlabel', true ,...
     'GroupGap',0,...
     'FigureTitle',labels{2});
-cohensD_bi = cohensD;
-cohensD_bi.d2 = cohensD2.d;
-cohensD_bi.SE2 = cohensD2.SE;
 
 % NPS vs SIIPS
 plotCohensD_bivariate_byGroup(cohensD, cohensD2,Group_labels, ...
-    'GroupRegions', true, 'GroupRegionStyle', 'ellipse','GroupRegionAlpha', 0.08,'XLim', [-1 0.5], 'YLim', [-1 0.5],'XLabel','NPS','YLabel','SIIPS');
+    'GroupRegions', true, 'GroupRegionStyle', 'ellipse','GroupRegionAlpha', 0.08,'XLim', [-1.5 1], 'YLim', [-1.5 1],'XLabel','NPS','YLabel','SIIPS');
+
+% Circstat
+results_cov = classify_activation_pattern(-cohensD.d, -cohensD2.d, Group_labels);
+% [d,p,stats] = manova1([-cohensD.d, -cohensD2.d],Group_labels);
+
 
 % Pain ratings
 cohensD_rawpain = cohensD_table_wrapper(BigDat_n);
@@ -168,12 +171,16 @@ plotCohensD_bivariate_byGroup(cohensD2,cohensD_rawpain, Group_labels, ...
     'GroupRegions', true, 'GroupRegionStyle', 'ellipse','GroupRegionAlpha', 0.08,'XLim', [-1.5 1], 'YLim', [-2.75 0.5],'XLabel','SIIPS','YLabel','Pain');
 
 % Subjectwise NPS
-NPS_sc = Sgn_dat.SIIPS;
+NPS_sc = Sgn_dat.NPS;
 NPS_sc = NPS_sc{:,:};
 NPS_cell = conv2cell(NPS_sc); 
 NPS_sc = NPS_sc(:);
 NPS_sc(isnan(NPS_sc))=[];
 
+SIIPS_sc = Sgn_dat.SIIPS;
+SIIPS_sc = SIIPS_sc{:,:};
+SIIPS_sc = SIIPS_sc(:);
+SIIPS_sc(isnan(SIIPS_sc))=[];
 %% Jackknife similarity
 % [sim_values, d, low_agreement, Nvox] = jackknife_similarity(data_cell_rn{1});
 [sim_values, ~, d] = cellfun(@(x) jackknife_similarity(x),data_cell2,'UniformOutput',false);
@@ -244,7 +251,11 @@ disp(lme2);
 % For rawpain
 [tbl2, X, groupVec, varNames] = createMixedDesignEffectTable(Group_labels, cohensD_rawpain.n,[],[],'referenceLevel','Cognitive');
   
+% NPS vs SIIPS
+NPS_sc_reg = regress_out(NPS_sc, sim_vect);
+SIIPS_sc_reg = regress_out(SIIPS_sc, sim_vect);
 
+results_cov = classify_activation_pattern(-NPS_sc_reg, -SIIPS_sc_reg, groupVec);
 %% Common factors +ve -ve
 
 % Apply parcellation
@@ -263,8 +274,11 @@ idx_neg = roi_means<-ts(2);
 idx = [idx(idx_pos) idx(idx_neg)];
 
 studymeans = cellfun(@(x) mean(x),contrastCells,'UniformOutput',false);
-studymean_reg = vertcat(studymeans{:});
-studymean_reg = studymean_reg(:,idx);
+studysem = cellfun(@(x) std(x)./size(x,1),contrastCells,'UniformOutput',false);
+
+studymean_reg_ = vertcat(studymeans{:});
+studysem_reg_ = vertcat(studysem{:});
+studymean_reg = studymean_reg_(:,idx);
 
 studymean_corr = corrcoef(studymean_reg);
 
@@ -294,8 +308,39 @@ yticklabels(atlas.labels(idxsort))
 %     llist{kk} = llist_(lid==kk);
 % end
 
+idx_pos2 = and(idxsort,(lid==1)');
+idx_neg2 = and(idxsort,(lid==4)');
+
+cohensD_pos = cohensD;
+cohensD_pos.d = median(studymean_reg_(:,idx_pos2),2);
+cohensD_pos.SE = median(studysem_reg_(:,idx_pos2),2);
+
+cohensD_neg = cohensD;
+cohensD_neg.d = -median(studymean_reg_(:,idx_neg2),2);
+cohensD_neg.SE = median(studysem_reg_(:,idx_neg2),2);
+
+% SIIPS vs Pain
+plotCohensD_bivariate_byGroup(cohensD_pos,cohensD_neg, Group_labels, ...
+    'GroupRegions', true, 'GroupRegionStyle', 'ellipse','GroupRegionAlpha', 0.08,'XLabel','Pos','YLabel','Neg');
+
+% cohensD_neg.d = -(median(studymean_reg_(:,idx_neg),2));
+plotCohensD_bivariate_byGroup(cohensD_pos,cohensD_neg, Group_labels, ...
+    'GroupRegions', true, 'GroupRegionStyle', 'ellipse','GroupRegionAlpha', 0.08,'XLabel','Pos','YLabel','Neg');
+
+% Manova
+[d,p,stats] = manova1([cohensD_pos.d cohensD_neg.d],Group_labels);
+% Manova
+[d,p,stats] = manova1([cohensD_pos.d cohensD_neg.d],double(group_));
 
 
+% Circstat
+results = classify_activation_pattern(cohensD_pos.d, cohensD_neg.d, double(group_));
+% [d,p,stats] = manova1([results.theta_deg results.theta_rad],double(group_));
+
+% Circstat
+results = classify_activation_pattern(cohensD_pos.d, cohensD_neg.d, Group_labels)
+
+%% Thresholds and counts
 
 tmpl = image_vector('image_names', 'fmriprep20_template.nii');
 tiv_rs = resample_space(tmap_iv, tmpl);
