@@ -106,6 +106,19 @@ catch ME
     p_rtheta_manova = NaN;
 end
 
+%% --- MANOVA on [pos_act, neg_red] (for subplot 1,1) ---
+try
+    [d_xy, p_xy_vec, stats_xy] = manova1([pos_act, neg_red], group_idx);
+    if isempty(p_xy_vec)
+        p_manova_xy = NaN;
+    else
+        p_manova_xy = p_xy_vec(1);
+    end
+catch ME
+    warning('manova1 on [pos,neg] failed: %s', ME.message);
+    d_xy = 0; p_manova_xy = NaN; stats_xy = [];
+end
+
 %% --- Chi-square on quadrant proportions ---
 type_names_order = {'activation_only', 'both', 'suppression_only', 'neither'};
 type_idx = zeros(N, 1);
@@ -162,14 +175,25 @@ for g = 1:n_groups
             'DisplayName', group_names{g}, 'MarkerFaceAlpha', 0.85);
 end
 
-lbl_r = 0.75 * max(abs([xmin xmax ymin ymax]));
-text(lbl_r*cosd( 45), lbl_r*sind( 45), 'Both',     'Color',[0 0.55 0],   'FontSize',9, 'FontWeight','bold','HorizontalAlignment','center');
-text(lbl_r*cosd(135), lbl_r*sind(135), 'Sup only', 'Color',[0 0 0.7],    'FontSize',9, 'FontWeight','bold','HorizontalAlignment','center');
-text(lbl_r*cosd(225), lbl_r*sind(225), 'Neither',  'Color',[0.3 0.3 0.3],'FontSize',9, 'FontWeight','bold','HorizontalAlignment','center');
-text(lbl_r*cosd(315), lbl_r*sind(315), 'Act only', 'Color',[0.7 0 0],    'FontSize',9, 'FontWeight','bold','HorizontalAlignment','center');
+% Plot canonical separation axes through centroid if MANOVA indicates separation
+if d_xy >= 1 && ~isempty(stats_xy) && isfield(stats_xy, 'eigenvec')
+    centroid = [mean(pos_act), mean(neg_red)];
+    for k = 1:d_xy
+        v = stats_xy.eigenvec(:, k);
+        if norm(v) > 0
+            v = v / norm(v);
+            plot(centroid(1) + [-R R]*v(1), centroid(2) + [-R R]*v(2), ...
+                 'k:', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+        end
+    end
+end
 
 xlabel('Positive activation'); ylabel('Negative reduction (sign-flipped)');
-title('Activation pattern (x, y)');
+if isnan(p_manova_xy)
+    title('Activation pattern (x, y)');
+else
+    title(sprintf('Activation pattern (x, y)   MANOVA d=%d  p=%.3f', d_xy, p_manova_xy));
+end
 legend('Location', 'best', 'FontSize', 8);
 xlim([xmin xmax]); ylim([ymin ymax]); axis square;
 
@@ -246,9 +270,6 @@ for i = 1:N
             'MarkerFaceAlpha', 0.6, 'HandleVisibility', 'off');
 end
 
-text(xl(2) - 0.05, -45, 'Selective (act|sup)',   'Color',[0.45 0.25 0.55], 'FontSize',8, 'FontWeight','bold', 'HorizontalAlignment','right','VerticalAlignment','middle');
-text(xl(2) - 0.05,  45, 'Aligned (both|neither)', 'Color',[0.15 0.5 0.4],  'FontSize',8, 'FontWeight','bold', 'HorizontalAlignment','right','VerticalAlignment','middle');
-
 ylabel('\theta (deg, folded mod \pi)');
 if isnan(p_theta_circ_axial)
     title(sprintf('Axial (folded)   ANOVA p=%.3f   (circ\\_ww n/a)', p_theta_anova_axial));
@@ -267,7 +288,7 @@ b(2).FaceColor = [0.50 0.85 0.50];  % both
 b(3).FaceColor = [0.50 0.50 0.90];  % suppression_only
 b(4).FaceColor = [0.70 0.70 0.70];  % neither
 xticklabels(group_names); xtickangle(30);
-ylabel('% of subjects');
+ylabel('% of studies');
 if isnan(p_chi2)
     title('Quadrant proportions');
 else
@@ -330,6 +351,8 @@ results.p_theta_anova       = p_theta_anova;
 results.p_theta_circ_axial  = p_theta_circ_axial;
 results.p_theta_anova_axial = p_theta_anova_axial;
 results.p_rtheta_manova     = p_rtheta_manova;
+results.p_manova_xy         = p_manova_xy;
+results.d_manova_xy         = d_xy;
 results.p_chi2              = p_chi2;
 results.posthoc_radial      = posthoc_radial;
 results.pct_matrix          = pct_matrix;

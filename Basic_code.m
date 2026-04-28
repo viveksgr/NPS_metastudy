@@ -7,9 +7,15 @@ addpath('C:\Work\Toolboxes_general\spm12')
 ColNames_mat = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\labels_update.mat');
 ColNames = ColNames_mat.ColNames;
 Group_labels = ColNames_mat.Group_labels;
-group_ = cellfun(@(x) strcmp(x,'Placebo')||strcmp(x,'Placebo+'), Group_labels);
+ColNames(5)=[];
+Group_labels(5) = [];
 
-ccode = {[1],[3],[4],[21],[10,11,12],[15:17],[9],[19],[1],[3],[1]}';
+group_ = cellfun(@(x) strcmp(x,'Placebo')||strcmp(x,'Placebo+'), Group_labels);
+group_id = double(group_)+1;
+pl_labels = {'Not Placebo'; 'Placebo'};
+pl_labels_list = pl_labels(group_id);
+
+ccode = {[1],[3],[4],[21],[11,12],[15:17],[9],[19],[1],[3],[1]}';
 studydir = 'C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\included_studies';
 [BigDat, ~] = NPSMS_harvest_canlab_cols(studydir, ccode, 50);
 
@@ -20,8 +26,8 @@ ccode2 = num2cell(ones(1,16));
 BigDat = cat(2,BigDat, BigDat2);
 lastRow = find(any(~isnan(BigDat),2), 1, 'last');
 if ~isempty(lastRow); BigDat = BigDat(1:lastRow, :);end
-% BigDat = l2normalize_columns(BigDat,'L2');
-BigDat = l2normalize_columns(BigDat,'InvStd');
+BigDat = l2normalize_columns(BigDat,'L2');
+% BigDat = l2normalize_columns(BigDat,'InvStd');
 
 % Switch signs
 BigDat_n = BigDat;
@@ -36,7 +42,7 @@ plot_sorted_bar_with_errors(BigDat_n, ColNames)
 %  % desc = descriptives(DATA_OBJ_CON{1, 1}  , ['noverbose', 'plotcoverage']);
 %  % qc_metrics_second_level(DATA_OBJ_CON{1, 1});
 %  % help robfit_parcelwise
-idx_vec = [1 -1 1 -1 -1 1 -1 1 1 1 1 -1 -1 -1 1 ones(1,16)]';
+idx_vec = [1 -1 1 -1  1 -1 1 1 1 1 -1 -1 -1 1 ones(1,16)]';
 
 st_vec_ind = cellfun(@(x) numel(x),ccode);
 st_vec = [];
@@ -50,9 +56,9 @@ end
 
 st_vec = cat(2,st_vec,12:27);
 % Dummy contrast
-C = (([1 1 1 1 -1 -1 -1 1 1 -1 -1 -1 -1 1 1 -1 -1 -1 1 1 -1 -1 -1 -1 -1 1 1 -1 1 1 -1]+1)/2)+1;
+C = (([1 1 1 1 -1 -1 1 1 -1 -1 -1 -1 1 1 -1 -1 -1 1 1 -1 -1 -1 -1 -1 1 1 -1 1 1 -1]+1)/2)+1;
 
-Idx = {[1], [1], [1], [2], [4:6],[1:3],[1],[1], [1], [1], [2]}';
+Idx = {[1], [1], [1], [2], [5:6],[1:3],[1],[1], [1], [1], [2]}';
 [BigDat_f] = harvest_canlab_funccols(studydir, Idx);
 ncontrast = numel(BigDat_f);
 for ii = 1:ncontrast
@@ -80,7 +86,7 @@ data_cell = alignFmriDataToReference(BigDat_f, [2]);
 % With sub-grid jitter to break the discrete rank grid
 % V_out = harmonize_zero_preserve(V_in, 'jitter', 0.25);
 
-dat_obj = rescale(dat_obj, 'zeropreservequantile', 'jitter', 0.25, 'seed', 42);
+% dat_obj = rescale(dat_obj, 'zeropreservequantile', 'jitter', 0.25, 'seed', 42);
 
 % Harmonize and negate
 data_cell_rn = cellfun(@(x) rescale(x,'zeropreservequantile', 'jitter', 0.25,'seed', 42),data_cell,'UniformOutput',false);
@@ -118,7 +124,7 @@ end
 %% NPS masks
 ord = load('C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\Postprocessing\ratings_sort.mat');
 ord = ord.ord;
-Sgn_dat = apply_all_signatures(data_cell2,'conditionnames',ColNames);
+Sgn_dat = apply_all_signatures(data_cell_rn2,'conditionnames',ColNames);
 % Sgn_dat2 = apply_nps(data_cell,'conditionnames',ColNames);
 
 cl_mat = lines(length(unique(Group_labels)));
@@ -268,13 +274,16 @@ c_map = extract_roi_averages(tmap_iv, atlas);
 roi_means = zeros(1,length(atlas.labels));
 for nn=1:length(atlas.labels); roi_means(nn)=median(c_map(nn).dat); end
 
-idx = 1:length(atlas.labels);
+
 idx_pos = roi_means>ts(1);
 idx_neg = roi_means<-ts(2);
-idx = [idx(idx_pos) idx(idx_neg)];
+% idx_pos = roi_means>3.1;
+% idx_neg = roi_means<-3.1;
+idx_n = 1:length(atlas.labels);
+idx = [idx_n(idx_pos) idx_n(idx_neg)];
 
 studymeans = cellfun(@(x) mean(x),contrastCells,'UniformOutput',false);
-studysem = cellfun(@(x) std(x)./size(x,1),contrastCells,'UniformOutput',false);
+studysem = cellfun(@(x) std(x)./sqrt(size(x,1)),contrastCells,'UniformOutput',false);
 
 studymean_reg_ = vertcat(studymeans{:});
 studysem_reg_ = vertcat(studysem{:});
@@ -287,7 +296,7 @@ stats = clusterdata_permtest(studymean_corr, ...
     'k', 2:12, ...
     'distancemetric', 'correlation', ...
     'linkagemethod', 'average', ...
-    'reducedims', false, ...
+    'reducedims', true, ...
     'nperm', 100, ...
     'doplot', true, ...
     'verbose', true);
@@ -295,6 +304,7 @@ stats = clusterdata_permtest(studymean_corr, ...
 [lid,argsort] = sort(stats.best_cluster_labels);
 idxsort = idx(argsort);
 nanat = length(stats.best_cluster_labels);
+figure('Position',[0.5 0.5 640 480])
 imagesc(1:nanat,1:nanat,studymean_corr(argsort,argsort));
 hold on
 xticks(1:nanat)
@@ -302,17 +312,27 @@ yticks(1:nanat)
 xticklabels(atlas.labels(idxsort))
 yticklabels(atlas.labels(idxsort))
 
-% llist = {};
-% llist_ = atlas.label_descriptions(idxsort);
-% for kk = 1:4;
-%     llist{kk} = llist_(lid==kk);
-% end
+% Crosstab analysis
+idx_id = [ones(sum(idx_pos),1); 2*ones(sum(idx_neg),1)];
+crosstab_cluster_overlap(idx_id, stats.best_cluster_labels, 'name1', 'GLM contrast', 'name2', 'K-means')
 
-idx_pos2 = and(idxsort,(lid==1)');
-idx_neg2 = and(idxsort,(lid==4)');
+
+% idx_pos2 = idx_pos;
+% idx_neg2 = idx_neg;
+
+idx_pos2 = false(1,length(idx_n));
+idx_pos2(idx(stats.all_cluster_labels(:,2)==2)) = true;
+idx_neg2 = false(1,length(idx_n));
+idx_neg2(idx(stats.all_cluster_labels(:,2)==1)) = true;
+
+llist_1 = atlas.label_descriptions(idx_pos2);
+llist_2 = atlas.label_descriptions(idx_neg2);
+
+% idx_pos2 = and(idxsort,(lid==1)');
+% idx_neg2 = and(idxsort,(lid==2)');
 
 cohensD_pos = cohensD;
-cohensD_pos.d = median(studymean_reg_(:,idx_pos2),2);
+cohensD_pos.d = -median(studymean_reg_(:,idx_pos2),2);
 cohensD_pos.SE = median(studysem_reg_(:,idx_pos2),2);
 
 cohensD_neg = cohensD;
@@ -321,24 +341,56 @@ cohensD_neg.SE = median(studysem_reg_(:,idx_neg2),2);
 
 % SIIPS vs Pain
 plotCohensD_bivariate_byGroup(cohensD_pos,cohensD_neg, Group_labels, ...
-    'GroupRegions', true, 'GroupRegionStyle', 'ellipse','GroupRegionAlpha', 0.08,'XLabel','Pos','YLabel','Neg');
+    'GroupRegions', true, 'GroupRegionStyle', 'ellipse','GroupRegionAlpha', 0.08,'XLabel','Neg-1','YLabel','Neg-2');
 
-% cohensD_neg.d = -(median(studymean_reg_(:,idx_neg),2));
-plotCohensD_bivariate_byGroup(cohensD_pos,cohensD_neg, Group_labels, ...
-    'GroupRegions', true, 'GroupRegionStyle', 'ellipse','GroupRegionAlpha', 0.08,'XLabel','Pos','YLabel','Neg');
+% % cohensD_neg.d = -(median(studymean_reg_(:,idx_neg),2));
+% plotCohensD_bivariate_byGroup(cohensD_pos,cohensD_neg, Group_labels, ...
+%     'GroupRegions', true, 'GroupRegionStyle', 'ellipse','GroupRegionAlpha', 0.08,'XLabel','Pos','YLabel','Neg');
 
-% Manova
-[d,p,stats] = manova1([cohensD_pos.d cohensD_neg.d],Group_labels);
-% Manova
-[d,p,stats] = manova1([cohensD_pos.d cohensD_neg.d],double(group_));
+% Circstats
+results = classify_activation_pattern(cohensD_pos.d, cohensD_neg.d, Group_labels);
 
-
-% Circstat
-results = classify_activation_pattern(cohensD_pos.d, cohensD_neg.d, double(group_));
+% Circstats - placebo
+results = classify_activation_pattern(cohensD_pos.d, cohensD_neg.d, pl_labels_list);
 % [d,p,stats] = manova1([results.theta_deg results.theta_rad],double(group_));
 
-% Circstat
-results = classify_activation_pattern(cohensD_pos.d, cohensD_neg.d, Group_labels)
+
+
+% Cluster map
+idx_vec = zeros(1,length(idx_n));
+kmax = 3;
+for ii = 1:kmax
+idx_vec(idx(stats.all_cluster_labels(:,kmax-1)==ii)) =ii;
+end
+
+idx_vec(idx_vec==3)=0;
+idx_vec(idx_vec==1)=3;
+
+atlas    = load_atlas('canlab2024_coarse_fmriprep20_2mm');
+tiv_rs   = roi_vector_to_image_vector(atlas, idx_vec);
+plot_signed_threshold(tiv_rs, 0.1);
+
+
+
+montage(tiv_rs)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 %% Thresholds and counts
 

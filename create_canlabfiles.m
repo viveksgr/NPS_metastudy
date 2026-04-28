@@ -56,7 +56,7 @@ wh_subjs([11 19])=[];
 %%%
 load('data_frame.mat')
 % gather all subject contrast files (example pattern)
-confiles = dir(fullfile(pwd,'r_*.nii.gz')); % adjust
+confiles = dir(fullfile(pwd,'r*.nii')); % adjust
 % % build fullpaths cell
 confiles = fullfile({confiles.folder}, {confiles.name});
 % create fmri_data object (uses CanlabCore fmri_data constructor)
