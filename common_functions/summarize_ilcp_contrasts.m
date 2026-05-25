@@ -8,14 +8,12 @@
 addpath('C:\Work\Toolboxes_general\spm12');
 spm('defaults','FMRI');
 
-ilcpDir = ['C:\Users\sgrvi\Dartmouth College Dropbox\Vivek Sagar\' ...
-    'Sagar_2025_Pain_Intervention_Meta_Analysis_PIMA\Data\subjectlevel\' ...
-    'additional_studies_toinc\ILCP'];
+ilcpDir = ['\\dartfs-hpc.dartmouth.edu\rc\lab\C\CANlab\labdata\archive_pub\2017_Woo_SIIPS_Schmidt_ILCP\Imaging\Analyses\first_level\model5'];
 
 outDir = fullfile(ilcpDir, 'summarized_for_meta');
 if ~exist(outDir,'dir'); mkdir(outDir); end
 
-contrasts = {'con_0030','con_0031'};
+contrasts = {'con_0040','con_0041'};
 
 % Create per-contrast subfolders
 for c = 1:numel(contrasts)

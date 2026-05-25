@@ -12,5 +12,5 @@ X = [ones(size(X1)), X1];
 beta = X \ Y;
 
 % residuals
-Y_res = Y - X * beta;
+Y_res = Y - X1 * beta(2);
 end

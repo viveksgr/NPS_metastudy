@@ -259,10 +259,11 @@ if doRegions
 end
 
 % --- error bars (drawn first, underneath points)
+errAlpha = 0.35;
 for i = 1:nRows
     % find group color for this row
     g = find(strcmp(string(uniqueGroups), string(grpCat(i))), 1);
-    col = C(g,:);
+    col = [C(g,:), errAlpha];
     % horizontal bar (x error)
     line(ax, [x(i)-xe(i), x(i)+xe(i)], [y(i) y(i)], ...
         'Color', col, 'LineWidth', 1);
@@ -342,7 +343,7 @@ if doStatsBox && isfinite(stats.slope)
 end
 
 if axEqual
-    axis(ax, 'equal');
+    % axis(ax, 'equal');
     xlim(ax, xl);
     ylim(ax, yl);
 end
