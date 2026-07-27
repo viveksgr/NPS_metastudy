@@ -1,11 +1,12 @@
 function [fig, order] = plotCohensD_byGroup(outTbl, groupVec, varargin)
-% PLOTCOHENSD_BYGROUP Plot Cohen's d (with SE) sorted by group means,
+% PLOTCOHENSD_BYGROUP Plot Cohen's d (with SE) sorted by group summaries,
 % with configurable horizontal spacing between groups.
 %
 % [fig, order] = plotCohensD_byGroup(outTbl, groupVec, 'GroupGap', 2, ...)
 %
-% See function body for options. New option:
-%  'GroupGap' - integer >=0 number of blank slots inserted after each group (default 1)
+% See function body for options:
+%  'GroupGap'       - integer >=0 number of blank slots inserted after each group (default 1)
+%  'GroupStatistic' - 'mean' or 'median' summary used to sort groups (default 'mean')
 
 % --- parse inputs
 p = inputParser;
@@ -19,6 +20,7 @@ addParameter(p,'Axes',[], @(x) isempty(x) || isgraphics(x,'axes'));
 addParameter(p,'ShowLegend',true,@islogical);
 addParameter(p,'ShowXlabel',true,@islogical);
 addParameter(p,'GroupGap',1,@(x)isnumeric(x) && isscalar(x) && (x>=0));
+addParameter(p,'GroupStatistic','mean',@(x) any(validatestring(x, {'mean','median'})));
 parse(p,varargin{:});
 
 Cuser = p.Results.Colors;
@@ -31,6 +33,7 @@ ax_in = p.Results.Axes;
 showLegend = p.Results.ShowLegend;
 showXlabel = p.Results.ShowXlabel;
 groupGap = round(p.Results.GroupGap);
+groupStatistic = validatestring(p.Results.GroupStatistic, {'mean','median'});
 
 % --- sanity checks
 nRows = height(outTbl);
@@ -68,14 +71,19 @@ else
     C = C(1:G, :);
 end
 
-% decide ordering (sorting on group mean + within-group d)
+% decide ordering (sorting on group summary + within-group d)
 if sorting
-    groupMeans = nan(G,1);
+    groupSummaries = nan(G,1);
     for g = 1:G
         which = grpCat == uniqueGroups{g};
-        groupMeans(g) = mean(outTbl.d(which), 'omitnan');
+        switch groupStatistic
+            case 'mean'
+                groupSummaries(g) = mean(outTbl.d(which), 'omitnan');
+            case 'median'
+                groupSummaries(g) = median(outTbl.d(which), 'omitnan');
+        end
     end
-    [~, grpOrderIdx] = sort(groupMeans, 'ascend');
+    [~, grpOrderIdx] = sort(groupSummaries, 'ascend');
     groups_sorted = uniqueGroups(grpOrderIdx);
 
     order = zeros(0,1);
@@ -134,7 +142,7 @@ end
 % --- plotting
 ax = ax_in;
 if isempty(ax)
-    fig = figure('Color','w','Position',[100 200 1100 420]);
+    fig = figure('Color','w','Position',[100 200 1050 350]);
     ax = axes('Parent',fig);
 else
     fig = ancestor(ax,'figure');

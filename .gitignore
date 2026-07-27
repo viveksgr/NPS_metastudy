@@ -1,0 +1,6 @@
+# scratch scripts and generated outputs (regenerable, not source)
+scratch/
+outputs/
+
+# MATLAB editor autosave
+*.asv

@@ -10,6 +10,7 @@ function outTbl = cohensD_table_wrapper(data, varargin)
 %  - 'nBoot'  : number of bootstrap samples (default 2000)
 %  - 'alpha'  : significance alpha for CI (default 0.05)
 %  - 'verbose': true/false (default false)
+%  - 'Center' : 'mean' or 'median' location estimate used in d (default 'mean')
 %
 % Output:
 %  - outTbl : table with rows = columns/variables and fields:
@@ -24,10 +25,12 @@ p = inputParser;
 addParameter(p,'nBoot',2000,@(x) isnumeric(x) && isscalar(x) && x>0);
 addParameter(p,'alpha',0.05,@(x) isnumeric(x) && isscalar(x) && x>0 && x<1);
 addParameter(p,'verbose',false,@islogical);
+addParameter(p,'Center','mean',@(x) any(validatestring(x, {'mean','median'})));
 parse(p,varargin{:});
 nBoot = p.Results.nBoot;
 alpha = p.Results.alpha;
 verbose = p.Results.verbose;
+center = validatestring(p.Results.Center, {'mean','median'});
 
 % Convert input into cell array of numeric vectors and names
 [varCells, varNames] = normalize_input(data);
@@ -57,8 +60,13 @@ for k = 1:nVar
         continue
     end
 
-    % sample mean and sd
-    m = mean(x);
+    % sample location and sd
+    switch center
+        case 'mean'
+            m = mean(x);
+        case 'median'
+            m = median(x);
+    end
     s = std(x,0);   % sample sd (n-1)
     d = m / s;
 
@@ -79,7 +87,12 @@ for k = 1:nVar
     for b = 1:nBoot
         idx = randsample(n, n, true);
         xb = x(idx);
-        mb = mean(xb);
+        switch center
+            case 'mean'
+                mb = mean(xb);
+            case 'median'
+                mb = median(xb);
+        end
         sb = std(xb,0);
         if sb == 0
             bootd(b) = NaN;

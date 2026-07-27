@@ -34,16 +34,16 @@ resampled_list = cell(1, N);
 for i = 1:N
     src = fmri_list{i};
     switch compare_space(src, templateIV)
-      case 0
-        % identical space & mask → no change
-        resampled_list{i} = src;
+        case 0
+            % identical space & mask → no change
+            resampled_list{i} = src;
 
-      case 1
-        % same physical space but different sampling → resample!
-        resampled_list{i} = resample_space(src, templateIV);
-
-      otherwise
-        error('Study %d is in an incompatible space; cannot resample.', i);
+        otherwise
+            % same physical space but different sampling → resample!
+            resampled_list{i} = resample_space(src, templateIV);
+            %
+            % otherwise
+            %   error('Study %d is in an incompatible space; cannot resample.', i);
     end
 end
 end

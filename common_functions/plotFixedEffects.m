@@ -1,13 +1,25 @@
-function plotFixedEffects(stats, cl_mat2)
+function plotFixedEffects(stats, cl_mat2, varargin)
 % plotFixedEffects  Bar plot of fixed-effect betas with SE error bars,
 %                   sorted by descending beta.
 %
 %   plotFixedEffects(stats, cl_mat2)
+%   plotFixedEffects(stats, cl_mat2, 'specialIntercept', false)
 %
 %   stats   - struct/dataset returned by fixedEffects (must have .Estimate,
 %             .SE, and .Name fields/columns).
 %   cl_mat2 - Nx3 matrix of RGB colors, one row per coefficient (in the
 %             original, unsorted order from stats).
+%
+%   Name-value options:
+%     'specialIntercept' - if true (default), keep the first coefficient in
+%                          first position and color it gray. If false, sort
+%                          all coefficients together. Colors are always
+%                          reordered with their original coefficient rows.
+
+    p = inputParser;
+    addParameter(p, 'specialIntercept', true, @(x) islogical(x) && isscalar(x));
+    parse(p, varargin{:});
+    specialIntercept = p.Results.specialIntercept;
 
     betas = stats.Estimate;
     lo    = stats.Lower;
@@ -20,19 +32,31 @@ function plotFixedEffects(stats, cl_mat2)
         error('cl_mat2 must have at least %d rows (one per coefficient).', n);
     end
 
-    [~, sortIdx] = sort(betas(2:end), 'ascend');
-    idx     = [1; sortIdx(:) + 1];
+    originalIdx = (1:n)';
+    if specialIntercept
+        [~, sortIdx] = sort(betas(2:end), 'ascend');
+        idx = [1; sortIdx(:) + 1];
+    else
+        [~, idx] = sort(betas, 'ascend');
+        idx = idx(:);
+    end
+
     betas   = betas(idx);
     lo      = lo(idx);
     up      = up(idx);
     pval    = pval(idx);
     names   = names(idx);
     cl_mat2 = cl_mat2(idx,:);
+    originalIdx = originalIdx(idx);
+
+    if specialIntercept
+        cl_mat2(originalIdx == 1,:) = [0.5 0.5 0.5];
+    end
 
     negLen = betas - lo;
     posLen = up - betas;
 
-    figure; hold on;
+    figure('Position',[0.5 0.5 320 240]); hold on;
     for i = 1:n
         bar(i, betas(i), 'FaceColor', cl_mat2(i,:), 'EdgeColor', 'k');
     end

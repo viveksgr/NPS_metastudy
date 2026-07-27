@@ -136,7 +136,7 @@ if K > 1
     DReduced = D(:, keepIdx);          % omit reference category
 
     for k = 1:numel(keepIdx)
-        rawName = sprintf('Label_%s', levels{keepIdx(k)});
+        rawName = sprintf('%s', levels{keepIdx(k)});
         cleanName = matlab.lang.makeValidName(rawName);
         tbl.(cleanName) = DReduced(:, k);
         dummyColNames{end + 1} = cleanName; %#ok<AGROW>

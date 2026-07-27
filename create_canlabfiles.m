@@ -56,7 +56,11 @@ wh_subjs([11 19])=[];
 
 %% reslice
 
+outFiles = realign_reslice_to_first(files, 'ResliceFirst', true);
+
+
 flags = struct('mask',0,'mean',0,'interp',1,'which',1,'wrap',[0 0 0],'prefix','r');
+
 confiles = dir(fullfile(pwd,'sub*.nii')); % adjust
 % % build fullpaths cell
 
@@ -67,24 +71,35 @@ spm_reslice(confiles, flags);
 
 copyfile(confiles{1},newpath) % Copy the first file w/o modification 
 
+%% realign
+
+confiles = dir(fullfile(pwd,'sub*.nii')); % adjust
+confiles = fullfile({confiles.folder}, {confiles.name});
+outFiles = realign_reslice_to_first(confiles, 'ResliceFirst', true);
+% % build fullpaths cell
+
 %% contrast obj
 
 % load('data_frame.mat')
 % gather all subject contrast files (example pattern)
-confiles = dir(fullfile(pwd,'r*.nii')); % adjust
+confiles = dir(fullfile(pwd,'r*007.nii')); % adjust
 % % build fullpaths cell
 confiles = fullfile({confiles.folder}, {confiles.name});
 % create fmri_data object (uses CanlabCore fmri_data constructor)
 fmriDat = fmri_data(confiles);    % will apply default brain mask (or specify mask)
 
-Sgn_dat2 = apply_nps(fmriDat);
+% c = load_image_set('nps');
+% fmriDat2 = resample_space(fmriDat,c);
+
+% Sgn_dat2 = apply_nps(fmriDat);
+Sgn_dat2 = apply_siips(fmriDat);
 nps = Sgn_dat2{1};
 npsp = nps/std(nps,0);
 mean(npsp)
 1.96*std(npsp)/sqrt(length(npsp))
 
-fmriDat.dat = -fmriDat.dat;
-fmriDat.source_notes = 'Mindful-pain';
+fmriDat.dat = fmriDat.dat;
+fmriDat.source_notes = 'predict-uncontrol';
 DATA_OBJ_CON{1} = fmriDat;
 mkdir("fmri_data_objects_for_contrasts")
 save("fmri_data_objects_for_contrasts\contrast_data_objects.mat","DATA_OBJ_CON")
